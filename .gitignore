@@ -3,3 +3,6 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Internal working notes — kept local, never published
+CLAUDE.md
