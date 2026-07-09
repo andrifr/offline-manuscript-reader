@@ -42,6 +42,9 @@
     --warn: #ff8fa3;
     --shadow: 0 8px 24px rgba(0, 0, 0, .35);
     --fs: 1;
+    /* Support/download CTAs stay pink in BOTH modes (not overridden by the
+       light theme) — the one splash of brand color light mode keeps. */
+    --cta: #f01860;
   }
   /* Light theme */
   html[data-theme="light"] {
@@ -170,7 +173,7 @@
     background: var(--panel2); border: 1px solid var(--accent); border-radius: 12px;
     font-size: .92rem; line-height: 1.6;
   }
-  .nudge a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .nudge a { color: var(--cta); font-weight: 700; text-decoration: none; }
   .nudge a:hover { text-decoration: underline; }
   .nudge-x {
     position: absolute; top: 8px; right: 8px; width: 30px; height: 30px;
@@ -244,13 +247,14 @@
   /* ---------- footer ---------- */
   footer { width: 100%; max-width: 720px; margin-top: 36px; font-size: .82rem; color: var(--muted); }
   .support { text-align: center; margin-bottom: 14px; line-height: 1.6; }
-  .support a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .support a { color: var(--cta); font-weight: 600; text-decoration: none; }
   .support a:hover { text-decoration: underline; }
   .how-body { padding: 0 16px 16px; line-height: 1.7; }
   .how-body ul { margin: 6px 0 12px 18px; }
   .how-body li { margin-bottom: 4px; }
   .how-body strong { color: var(--text); }
   .fineprint { text-align: center; margin-top: 16px; line-height: 1.8; }
+  .fineprint .link-btn { color: var(--cta); }
 
   /* ---------- small screens ---------- */
   @media (max-width: 620px) {
