@@ -6,7 +6,7 @@
 <title>Offline Manuscript Reader</title>
 <!-- Inline favicon (a data: URI is embedded in the page, not a network request).
      Also stops browsers from requesting /favicon.ico on their own. -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f01860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/><path d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/></svg>">
 <!--
   Offline Manuscript Reader
   A single-file, privacy-first read-aloud tool for writers.
@@ -66,6 +66,9 @@
   button { font-family: inherit; cursor: pointer; }
   button:disabled { opacity: .35; cursor: default; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Inline SVG icons — used instead of emoji so the UI looks identical on
+     every device/OS. They inherit the text color (currentColor). */
+  .icon { width: 1em; height: 1em; vertical-align: -0.15em; flex: 0 0 auto; }
 
   /* ---------- header ---------- */
   header { margin-bottom: 16px; }
@@ -115,6 +118,7 @@
     width: 100%; padding: 15px 20px; border: none; border-radius: 12px;
     background: var(--accent); color: var(--btn-text);
     font-size: 1.1rem; font-weight: 700; transition: filter .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
   .primary-btn:hover { filter: brightness(1.07); }
 
@@ -159,7 +163,9 @@
   .t-btn {
     width: 52px; height: 52px; border: 1px solid var(--line); border-radius: 12px;
     background: var(--panel2); color: var(--text); font-size: 1.2rem;
+    display: inline-flex; align-items: center; justify-content: center;
   }
+  .t-btn .icon { width: 1.15em; height: 1.15em; }
   .t-btn:hover:not(:disabled) { border-color: var(--accent); }
   .t-main {
     width: 68px; height: 56px; border: none; background: var(--accent);
@@ -188,9 +194,16 @@
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
   }
   details.box summary::-webkit-details-marker { display: none; }
-  details.box summary .sum-label { white-space: nowrap; }
-  details.box summary .sum-label::before { content: '▸ '; color: var(--accent); }
-  details.box[open] summary .sum-label::before { content: '▾ '; }
+  details.box summary .sum-label {
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 8px;
+  }
+  /* Disclosure chevron drawn in CSS (points right when closed, down when open) */
+  details.box summary .sum-label::before {
+    content: ''; width: .45em; height: .45em; flex: 0 0 auto;
+    border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+    transform: rotate(-45deg); transition: transform .15s;
+  }
+  details.box[open] summary .sum-label::before { transform: rotate(45deg); }
   .sum-status {
     flex: 1; min-width: 0; text-align: right;
     font-size: .78rem; font-weight: 500; color: var(--muted);
@@ -275,7 +288,7 @@
     <header>
       <div class="head-row">
         <h1>Offline Manuscript Reader</h1>
-        <button class="icon-btn" id="themeBtn" title="Switch theme" aria-label="Switch theme">☀</button>
+        <button class="icon-btn" id="themeBtn" title="Switch theme" aria-label="Switch theme"></button>
       </div>
       <p class="tagline">Hear your draft read aloud, privately — no upload, no account, no AI.</p>
     </header>
@@ -293,13 +306,15 @@
         </span>
       </div>
       <button class="primary-btn" id="readBtn"
-        title="Read the text aloud (Ctrl+Enter). Select a passage first to read only that part.">▶ Read aloud</button>
+        title="Read the text aloud (Ctrl+Enter). Select a passage first to read only that part.">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="7 4 21 12 7 20"/></svg>
+        Read aloud</button>
     </div>
 
     <!-- ===== READING VIEW ===== -->
     <div id="readView" hidden>
       <div class="read-toolbar">
-        <button class="btn-ghost" id="editBtn" title="Back to editing (Esc)">← Edit text</button>
+        <button class="btn-ghost" id="editBtn" title="Back to editing (Esc)"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Edit text</button>
         <span class="read-status"><span id="nowCount">Ready</span><span class="sel-badge" id="selBadge">selection</span></span>
       </div>
       <div class="bar"><div class="bar-fill" id="barFill"></div></div>
@@ -310,24 +325,24 @@
            setting). The link is never contacted automatically — click-only. -->
       <div class="nudge" id="nudge" hidden>
         <button class="nudge-x" id="nudgeClose" title="Hide this permanently (a quiet link stays in the footer)"
-          aria-label="Hide this message permanently">✕</button>
+          aria-label="Hide this message permanently"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         <strong>That's your draft, read aloud</strong> — on your device, nothing uploaded.
         If it helped you catch something, you can
         <a id="nudgeLink" href="#" target="_blank" rel="noopener noreferrer">buy me a coffee</a>.
       </div>
 
       <div class="transport">
-        <button class="t-btn" id="prevBtn" title="Previous sentence (←)" aria-label="Previous sentence">⏮</button>
-        <button class="t-btn t-main" id="ppBtn" title="Play / pause (Space)" aria-label="Play">▶</button>
-        <button class="t-btn" id="stopBtn" title="Stop" aria-label="Stop" disabled>⏹</button>
-        <button class="t-btn" id="nextBtn" title="Next sentence (→)" aria-label="Next sentence">⏭</button>
+        <button class="t-btn" id="prevBtn" title="Previous sentence (←)" aria-label="Previous sentence"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="19 4 9 12 19 20"/><rect x="4" y="4" width="3" height="16" rx="1"/></svg></button>
+        <button class="t-btn t-main" id="ppBtn" title="Play / pause (Space)" aria-label="Play"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="7 4 21 12 7 20"/></svg></button>
+        <button class="t-btn" id="stopBtn" title="Stop" aria-label="Stop" disabled><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+        <button class="t-btn" id="nextBtn" title="Next sentence (→)" aria-label="Next sentence"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 4 15 12 5 20"/><rect x="17" y="4" width="3" height="16" rx="1"/></svg></button>
       </div>
     </div>
 
     <!-- ===== SETTINGS (collapsed by default — keeps the first view simple) ===== -->
     <details class="box settings" id="settingsBox">
       <summary>
-        <span class="sum-label">⚙️ Voice &amp; settings</span>
+        <span class="sum-label"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Voice &amp; settings</span>
         <span class="sum-status" id="sumStatus"></span>
       </summary>
       <div class="settings-body">
@@ -346,7 +361,7 @@
               <input id="voiceFilter" class="voice-filter" placeholder="Search these voices…" hidden>
             </div>
           </div>
-          <label class="local-toggle"><input type="checkbox" id="localOnly" checked> 🔒 Local voices only — never send text off this device</label>
+          <label class="local-toggle"><input type="checkbox" id="localOnly" checked> <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Local voices only — never send text off this device</label>
           <div class="privacy-note" id="privacyNote"></div>
         </div>
 
@@ -374,7 +389,7 @@
               <button class="btn-ghost" id="fontUp" title="Larger text">A+</button>
             </div>
           </div>
-          <button class="link-btn" id="resetBtn" title="Reset speed, pitch and volume to defaults">↺ Reset speed &amp; pitch</button>
+          <button class="link-btn" id="resetBtn" title="Reset speed, pitch and volume to defaults"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Reset speed &amp; pitch</button>
         </div>
       </div>
     </details>
@@ -425,7 +440,7 @@
     </details>
 
     <p class="fineprint">This page makes no intentional network requests — press Play and check DevTools → Network to verify.<br>
-      <button class="link-btn" id="downloadBtn" title="Save a copy of this page to use offline">⬇ Download this page for offline use</button>
+      <button class="link-btn" id="downloadBtn" title="Save a copy of this page to use offline"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download this page for offline use</button>
     </p>
   </footer>
 
@@ -461,6 +476,19 @@
   let voices = [], chunks = [], idx = 0;
   let playing = false, paused = false, inRead = false, curUtter = null;
   let selectedVoiceName = '', lastSpan = null, nudgeShown = false;
+
+  // Inline SVG icons for states the script toggles (the rest are in the HTML).
+  // SVGs instead of emoji so the UI looks identical on every device/OS.
+  const SVG_STROKE = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  const SVG_FILL = '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">';
+  const ICONS = {
+    play: SVG_FILL + '<polygon points="7 4 21 12 7 20"/></svg>',
+    pause: SVG_FILL + '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+    sun: SVG_STROKE + '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    moon: SVG_STROKE + '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    lock: SVG_STROKE + '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    warn: SVG_STROKE + '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  };
 
   // Respect reduced-motion preferences when auto-scrolling the reader.
   const scrollBehavior = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth';
@@ -638,13 +666,13 @@
   function updatePrivacyNote() {
     if (localOnly.checked) {
       privacyNote.className = 'privacy-note safe';
-      privacyNote.innerHTML = '🔒 Local only: your text stays on this device and is never sent anywhere.';
+      privacyNote.innerHTML = ICONS.lock + ' Local only: your text stays on this device and is never sent anywhere.';
       return;
     }
     const v = chosenVoice();
     if (v && !v.localService) {
       privacyNote.className = 'privacy-note warn';
-      privacyNote.innerHTML = '⚠️ This is an <strong>online</strong> voice — pressing Play <strong>sends your text over the internet</strong> to its provider (e.g. Microsoft/Google).';
+      privacyNote.innerHTML = ICONS.warn + ' This is an <strong>online</strong> voice — pressing Play <strong>sends your text over the internet</strong> to its provider (e.g. Microsoft/Google).';
     } else {
       privacyNote.className = 'privacy-note';
       privacyNote.innerHTML = 'This voice is local — text stays on your device. (Voices marked “· online” would send the text to their provider.)';
@@ -852,7 +880,7 @@
 
   function setState(isPlaying, isPaused) {
     const showPause = isPlaying && !isPaused;
-    ppBtn.textContent = showPause ? '⏸' : '▶';
+    ppBtn.innerHTML = showPause ? ICONS.pause : ICONS.play;
     ppBtn.title = showPause ? 'Pause (Space)' : (isPaused ? 'Resume (Space)' : 'Play (Space)');
     ppBtn.setAttribute('aria-label', ppBtn.title);
     stopBtn.disabled = !isPlaying;
@@ -910,7 +938,7 @@
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme);
     // The button shows the theme you'd switch TO.
-    themeBtn.textContent = theme === 'dark' ? '☀' : '🌙';
+    themeBtn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
     themeBtn.title = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
     themeBtn.setAttribute('aria-label', themeBtn.title);
   }
