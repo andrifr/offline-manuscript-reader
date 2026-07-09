@@ -189,6 +189,12 @@
 
   .row { display: flex; flex-direction: column; gap: 6px; }
   label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  /* Language + voice pickers side by side; the language column disappears
+     (.solo) when only one language is installed. */
+  .voice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
+  .voice-grid.solo { grid-template-columns: minmax(0, 1fr); }
+  .voice-grid > .row { min-width: 0; }
+  .voice-grid select { width: 100%; }
   .voice-row { display: flex; gap: 8px; align-items: center; }
   select {
     flex: 1; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px;
@@ -197,7 +203,7 @@
   select:focus { border-color: var(--accent); }
   .voice-filter {
     width: 100%; padding: 9px 12px; border: 2px solid var(--line); border-radius: 8px;
-    background: var(--panel2); color: var(--text); font-size: 1rem; outline: none; margin-bottom: 2px;
+    background: var(--panel2); color: var(--text); font-size: 1rem; outline: none; margin-top: 4px;
   }
   .voice-filter:focus { border-color: var(--accent); }
   .voice-filter::placeholder { color: var(--muted); }
@@ -241,6 +247,7 @@
     h1 { font-size: 1.15rem; }
     textarea { min-height: 44vh; }
     .sliders { grid-template-columns: 1fr; }
+    .voice-grid { grid-template-columns: minmax(0, 1fr); }
     .reader { padding: 14px; max-height: 55vh; }
   }
   /* Keyboard hints are useless on touch devices */
@@ -309,11 +316,19 @@
       </summary>
       <div class="settings-body">
         <div class="row">
-          <label for="voice">Voice</label>
-          <input id="voiceFilter" class="voice-filter" placeholder="Search voices — e.g. en-US, French, Zira" hidden>
-          <div class="voice-row">
-            <select id="voice"></select>
-            <button class="btn-ghost" id="testBtn" title="Hear a short sample of this voice">Test</button>
+          <div class="voice-grid" id="voiceGrid">
+            <div class="row" id="langWrap">
+              <label for="langSel">Language</label>
+              <select id="langSel"></select>
+            </div>
+            <div class="row">
+              <label for="voice">Voice</label>
+              <div class="voice-row">
+                <select id="voice"></select>
+                <button class="btn-ghost" id="testBtn" title="Hear a short sample of this voice">Test</button>
+              </div>
+              <input id="voiceFilter" class="voice-filter" placeholder="Search these voices…" hidden>
+            </div>
           </div>
           <label class="local-toggle"><input type="checkbox" id="localOnly" checked> 🔒 Local voices only — never send text off this device</label>
           <div class="privacy-note" id="privacyNote"></div>
@@ -412,6 +427,7 @@
   const synth = window.speechSynthesis;
   const $ = id => document.getElementById(id);
   const textEl = $('text'), voiceSel = $('voice'), voiceFilter = $('voiceFilter');
+  const langSel = $('langSel'), langWrap = $('langWrap'), voiceGrid = $('voiceGrid');
   const localOnly = $('localOnly'), privacyNote = $('privacyNote');
   const rate = $('rate'), pitch = $('pitch'), volume = $('volume');
   const rateVal = $('rateVal'), pitchVal = $('pitchVal'), volumeVal = $('volumeVal');
@@ -436,8 +452,8 @@
 
   // ============================================================================
   // Persistence — SETTINGS ONLY. The manuscript text is never stored.
-  // (Keys: voice, rate, pitch, volume, localOnly, theme, fontScale, settings-panel
-  //  open state, and whether the support nudge was dismissed.)
+  // (Keys: voice, lang, rate, pitch, volume, localOnly, theme, fontScale,
+  //  settings-panel open state, and whether the support nudge was dismissed.)
   // ============================================================================
   const LS = {
     get: (k, d) => { try { const v = localStorage.getItem('tts_' + k); return v === null ? d : v; } catch (e) { return d; } },
@@ -490,6 +506,11 @@
     return name;
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function baseLang(code) { return (code || '').replace('_', '-').split('-')[0].toLowerCase(); }
+  function baseLangLabel(b) {
+    try { if (_dnLang) return _dnLang.of(b) || b; } catch (e) {}
+    return b;
+  }
 
   function sortedVoices() {
     const score = v => (/^en/i.test(v.lang) ? 0 : 1000) + (v.localService ? 0 : 100);
@@ -497,26 +518,84 @@
       score(a) - score(b) || langLabel(a.lang).localeCompare(langLabel(b.lang)) || a.name.localeCompare(b.name));
   }
 
-  // Rebuild the dropdown. "Local only" hides every online voice (a hard privacy
-  // constraint); the search box is just a view filter on top of that.
+  // Language filter — a SETTING stored in localStorage (tts_lang).
+  // '' (default) = follow the selected voice's language; 'all' = show everything;
+  // otherwise a base language code like 'fr'.
+  let langChoice = LS.get('lang', '');
+
+  // Resolve the effective language filter against every installed voice (local
+  // AND online — the dropdown is for discovery; the local-only privacy filter is
+  // applied to the voice list, not the language list).
+  function effLang(all) {
+    let eff = null;
+    if (langChoice === 'all') eff = null;
+    else if (langChoice) eff = langChoice;
+    else {
+      const v = all.find(x => x.name === selectedVoiceName);
+      eff = v ? baseLang(v.lang) : null;
+    }
+    // A stored language with no voices on this machine degrades gracefully to All.
+    if (eff && !all.some(v => baseLang(v.lang) === eff)) eff = null;
+    return eff;
+  }
+
+  // Build the language dropdown from ALL installed voices, so other languages
+  // stay discoverable even while local-only hides their (online) voices. Hidden
+  // entirely when just one language is available (nothing to choose).
+  function renderLangOptions(all, eff) {
+    const seen = new Set();
+    all.forEach(v => seen.add(baseLang(v.lang)));
+    const items = [...seen].map(b => ({ b, label: baseLangLabel(b) }))
+      .sort((a, z) => a.label.localeCompare(z.label));
+    const solo = items.length < 2;
+    langWrap.hidden = solo;
+    voiceGrid.classList.toggle('solo', solo);
+    if (solo) return;
+    langSel.innerHTML = '<option value="all">All languages</option>' +
+      items.map(i => `<option value="${esc(i.b)}">${esc(i.label)}</option>`).join('');
+    langSel.value = eff || 'all';
+  }
+
+  // Rebuild the dropdowns. "Local only" hides every online voice (a hard privacy
+  // constraint); the language dropdown and search box are view filters on top.
   function renderVoiceOptions() {
-    const allowed = sortedVoices().filter(v => !localOnly.checked || v.localService);
+    const all = sortedVoices();
+    const allowed = all.filter(v => !localOnly.checked || v.localService);
     if (localOnly.checked && (!selectedVoiceName || !allowed.some(v => v.name === selectedVoiceName))) {
       const firstLocal = allowed[0];
       if (firstLocal) { selectedVoiceName = firstLocal.name; LS.set('voice', selectedVoiceName); }
     }
 
+    const eff = effLang(all);
+    renderLangOptions(all, eff);
+    const byLang = eff ? allowed.filter(v => baseLang(v.lang) === eff) : allowed;
+
+    // Switching language moves the selection to that language's first voice.
+    if (byLang.length && !byLang.some(v => v.name === selectedVoiceName)) {
+      selectedVoiceName = byLang[0].name;
+      LS.set('voice', selectedVoiceName);
+    }
+
     // Only show the search box when there are enough voices to need it.
-    voiceFilter.hidden = allowed.length <= 12 && !(voiceFilter.value || '').trim();
+    voiceFilter.hidden = byLang.length <= 12 && !(voiceFilter.value || '').trim();
 
     const f = (voiceFilter.value || '').trim().toLowerCase();
-    const list = allowed.filter(v =>
+    const list = byLang.filter(v =>
       !f || (v.name + ' ' + v.lang + ' ' + langLabel(v.lang)).toLowerCase().includes(f));
 
     if (!list.length) {
-      const why = (localOnly.checked && !allowed.length)
-        ? 'No offline voices are installed. ' + esc(platformHint()) + ' Or untick “Local voices only”.'
-        : 'No voices match “' + esc(voiceFilter.value) + '”.';
+      let why;
+      if (localOnly.checked && !byLang.length) {
+        // This language exists only as online voices (or no local voices at all).
+        const label = eff ? baseLangLabel(eff) + ' ' : '';
+        const hasOnline = all.some(v => (!eff || baseLang(v.lang) === eff) && !v.localService);
+        why = 'No offline ' + esc(label) + 'voices are installed. ' + esc(platformHint())
+          + (hasOnline
+            ? ' Or untick “Local voices only” to use an online ' + esc(label) + 'voice — that sends your text to its provider.'
+            : '');
+      } else {
+        why = 'No voices match “' + esc(voiceFilter.value) + '”.';
+      }
       voiceSel.innerHTML = '<option value="">— none —</option>';
       privacyNote.className = 'privacy-note warn';
       privacyNote.innerHTML = why;
@@ -832,6 +911,12 @@
   pitch.addEventListener('input', () => { pitchVal.textContent = fmtPitch(pitch.value); LS.set('pitch', pitch.value); });
   volume.addEventListener('input', () => { volumeVal.textContent = fmtVol(volume.value); LS.set('volume', volume.value); });
   voiceSel.addEventListener('change', () => { selectedVoiceName = voiceSel.value; LS.set('voice', selectedVoiceName); updatePrivacyNote(); updateSumStatus(); });
+  langSel.addEventListener('change', () => {
+    langChoice = langSel.value; // 'all' or a base code like 'fr'
+    LS.set('lang', langChoice);
+    voiceFilter.value = '';     // a stale search from another language would hide everything
+    renderVoiceOptions();
+  });
   voiceFilter.addEventListener('input', renderVoiceOptions);
   localOnly.addEventListener('change', () => { LS.set('localOnly', localOnly.checked ? '1' : '0'); renderVoiceOptions(); });
 
@@ -852,10 +937,37 @@
   editBtn.addEventListener('click', enterEditMode);
   $('downloadBtn').addEventListener('click', downloadPage);
 
+  // Voice-test samples in the voice's own language (fallback: English).
+  // Static strings shipped with the page — nothing is fetched.
+  const SAMPLES = {
+    en: 'This is how this voice sounds.',
+    fr: 'Voici comment sonne cette voix.',
+    de: 'So klingt diese Stimme.',
+    es: 'Así suena esta voz.',
+    it: 'Ecco come suona questa voce.',
+    pt: 'É assim que esta voz soa.',
+    nl: 'Zo klinkt deze stem.',
+    sv: 'Så här låter den här rösten.',
+    da: 'Sådan lyder denne stemme.',
+    nb: 'Slik høres denne stemmen ut.',
+    no: 'Slik høres denne stemmen ut.',
+    is: 'Svona hljómar þessi rödd.',
+    fi: 'Tältä tämä ääni kuulostaa.',
+    pl: 'Tak brzmi ten głos.',
+    cs: 'Takto zní tento hlas.',
+    tr: 'Bu ses böyle duyuluyor.',
+    ru: 'Вот как звучит этот голос.',
+    uk: 'Ось як звучить цей голос.',
+    ar: 'هكذا يبدو هذا الصوت.',
+    hi: 'यह आवाज़ ऐसी सुनाई देती है।',
+    ja: 'この声はこのように聞こえます。',
+    ko: '이 목소리는 이렇게 들립니다.',
+    zh: '这个声音听起来是这样的。',
+  };
   $('testBtn').addEventListener('click', () => {
     try { synth.cancel(); } catch (e) {}
-    const u = new SpeechSynthesisUtterance('This is how this voice sounds.');
     const v = chosenVoice();
+    const u = new SpeechSynthesisUtterance((v && SAMPLES[baseLang(v.lang)]) || SAMPLES.en);
     if (v) { u.voice = v; u.lang = v.lang; }
     u.rate = parseFloat(rate.value); u.pitch = parseFloat(pitch.value); u.volume = parseFloat(volume.value);
     synth.speak(u);
