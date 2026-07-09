@@ -30,7 +30,8 @@
 
   /* Palette (both themes, roles switched):
      #353535 jet · #3c6e71 teal · #ffffff white · #d9d9d9 gray · #284b63 dark blue
-     Accent: #f01860 pink. Teal marks the sentence being read; pink marks actions. */
+     Actions are pink #f01860 in dark mode, dark blue #284b63 in light mode.
+     Teal marks the sentence being read (both modes). */
   /* Dark theme (default) */
   :root {
     --bg: #353535; --panel: #284b63; --panel2: #353535; --line: rgba(217, 217, 217, .22);
@@ -44,8 +45,8 @@
   /* Light theme */
   html[data-theme="light"] {
     --bg: #d9d9d9; --panel: #ffffff; --panel2: #d9d9d9; --line: rgba(53, 53, 53, .3);
-    --accent: #f01860; --btn-text: #ffffff;
-    --text: #353535; --muted: #284b63; --cur-bg: #3c6e71; --cur-text: #ffffff;
+    --accent: #284b63; --btn-text: #ffffff;
+    --text: #353535; --muted: #3c6e71; --cur-bg: #3c6e71; --cur-text: #ffffff;
     --chunk-hover: rgba(60, 110, 113, .18);
     --warn: #c62148;
     --shadow: 0 8px 24px rgba(53, 53, 53, .18);
