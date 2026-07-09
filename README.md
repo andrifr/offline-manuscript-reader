@@ -33,7 +33,7 @@ keeps working with the network off.
 
 - Paste text and have it read aloud
 - Voice picker that **labels local vs. online voices** and defaults to *“Local voices only”*
-- **Any language** your system has voices for — a language dropdown appears when more than one is installed, and the Test button speaks a sample in the voice's own language
+- **Any language** your system has voices for — a language dropdown appears when your available voices cover more than one language, and the Test button speaks a sample in the voice's own language
 - Play · Pause · Resume · Stop
 - Skip to the previous / next sentence (or click any sentence to read from there)
 - Current sentence highlighting while reading

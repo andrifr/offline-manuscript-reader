@@ -523,28 +523,29 @@
   // otherwise a base language code like 'fr'.
   let langChoice = LS.get('lang', '');
 
-  // Resolve the effective language filter against every installed voice (local
-  // AND online — the dropdown is for discovery; the local-only privacy filter is
-  // applied to the voice list, not the language list).
-  function effLang(all) {
+  // Resolve the effective language filter against the voices currently usable
+  // (i.e. after the local-only privacy filter). Languages that exist only as
+  // online voices are NOT offered while local-only is on — a dropdown full of
+  // unusable languages is worse than a shorter honest one. Unticking
+  // "Local voices only" reveals them.
+  function effLang(usable) {
     let eff = null;
     if (langChoice === 'all') eff = null;
     else if (langChoice) eff = langChoice;
     else {
-      const v = all.find(x => x.name === selectedVoiceName);
+      const v = usable.find(x => x.name === selectedVoiceName);
       eff = v ? baseLang(v.lang) : null;
     }
-    // A stored language with no voices on this machine degrades gracefully to All.
-    if (eff && !all.some(v => baseLang(v.lang) === eff)) eff = null;
+    // A stored language with no usable voices degrades gracefully to All.
+    if (eff && !usable.some(v => baseLang(v.lang) === eff)) eff = null;
     return eff;
   }
 
-  // Build the language dropdown from ALL installed voices, so other languages
-  // stay discoverable even while local-only hides their (online) voices. Hidden
+  // Build the language dropdown from the currently usable voices. Hidden
   // entirely when just one language is available (nothing to choose).
-  function renderLangOptions(all, eff) {
+  function renderLangOptions(usable, eff) {
     const seen = new Set();
-    all.forEach(v => seen.add(baseLang(v.lang)));
+    usable.forEach(v => seen.add(baseLang(v.lang)));
     const items = [...seen].map(b => ({ b, label: baseLangLabel(b) }))
       .sort((a, z) => a.label.localeCompare(z.label));
     const solo = items.length < 2;
@@ -566,8 +567,8 @@
       if (firstLocal) { selectedVoiceName = firstLocal.name; LS.set('voice', selectedVoiceName); }
     }
 
-    const eff = effLang(all);
-    renderLangOptions(all, eff);
+    const eff = effLang(allowed);
+    renderLangOptions(allowed, eff);
     const byLang = eff ? allowed.filter(v => baseLang(v.lang) === eff) : allowed;
 
     // Switching language moves the selection to that language's first voice.
