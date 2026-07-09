@@ -250,6 +250,7 @@
   .support a { color: var(--cta); font-weight: 600; text-decoration: none; }
   .support a:hover { text-decoration: underline; }
   .how-body { padding: 0 16px 16px; line-height: 1.7; }
+  .how-body a { color: var(--accent); font-weight: 600; }
   .how-body ul { margin: 6px 0 12px 18px; }
   .how-body li { margin-bottom: 4px; }
   .how-body strong { color: var(--text); }
@@ -417,7 +418,9 @@
         <p style="margin-top:10px"><em>Disclaimer:</em> This tool is designed for privacy-conscious writers. It runs
         locally in your browser and does not intentionally send your text anywhere, but no software can be guaranteed
         private in every environment. You should only use software from sources you trust. The whole tool is this one
-        HTML file — you're encouraged to inspect it (View Source) before trusting it with a manuscript.</p>
+        HTML file — you're encouraged to inspect it (View Source, Ctrl+U) or read the code on
+        <a href="https://github.com/andrifr/offline-manuscript-reader" target="_blank" rel="noopener noreferrer">GitHub</a>
+        before trusting it with a manuscript.</p>
       </div>
     </details>
 
@@ -431,9 +434,10 @@
   // ============================================================================
   // Configuration
   // ============================================================================
-  // Support / donation link. This is the ONLY outbound link on the page (used by
-  // the footer link and the post-read nudge) and is never contacted automatically
-  // — nothing happens unless the visitor clicks it.
+  // Support / donation link (used by the footer link and the post-read nudge).
+  // The only other outbound link on the page is the GitHub repository link in
+  // the privacy details ("read the code"). Neither is ever contacted
+  // automatically — nothing happens unless the visitor clicks them.
   const SUPPORT_URL = 'https://buymeacoffee.com/andrifr';
   // Show the support nudge only after a completed read of at least this many
   // sentences (i.e. after the tool has actually been useful).
