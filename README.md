@@ -16,8 +16,7 @@ locally in your browser using text-to-speech voices already installed on your co
 
 ## Use it
 
-**Online:** [Open the tool](https://YOUR_USERNAME.github.io/offline-manuscript-reader/)
-*(replace this link once GitHub Pages is enabled)*
+**Online:** [Open the tool](https://andrifr.github.io/offline-manuscript-reader/)
 
 **Offline (maximum privacy):**
 
@@ -85,8 +84,7 @@ and run it offline. You should only use software from sources you trust.
 ## Support
 
 This is free. If it helped you catch mistakes in your manuscript, you can support the
-project: **[Buy me a coffee](https://www.buymeacoffee.com/YOUR_NAME_HERE)**
-*(replace with your own link)*.
+project: **[Buy me a coffee](https://buymeacoffee.com/andrifr)**.
 
 ## License
 
