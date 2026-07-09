@@ -2,8 +2,11 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Offline Manuscript Reader</title>
+<!-- Inline favicon (a data: URI is embedded in the page, not a network request).
+     Also stops browsers from requesting /favicon.ico on their own. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 <!--
   Offline Manuscript Reader
   A single-file, privacy-first read-aloud tool for writers.
@@ -26,55 +29,82 @@
   /* Dark theme (default) */
   :root {
     --bg: #1a1a2e; --panel: #16213e; --panel2: #0d1b36; --line: #0f3460;
-    --accent: #4ecca3; --accent-strong: #4ecca3; --btn-text: #07131f;
+    --accent: #4ecca3; --btn-text: #07131f;
     --text: #eee; --muted: #8a93a6; --cur-bg: #4ecca3; --cur-text: #07131f;
+    --warn: #ff8fa3;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .35);
     --fs: 1;
   }
   /* Light theme */
   html[data-theme="light"] {
     --bg: #f4f5fa; --panel: #ffffff; --panel2: #eef0f6; --line: #d7dbe8;
-    --accent: #0e7d63; --accent-strong: #0e7d63; --btn-text: #ffffff;
+    --accent: #0e7d63; --btn-text: #ffffff;
     --text: #1c2333; --muted: #5a6377; --cur-bg: #0e7d63; --cur-text: #ffffff;
+    --warn: #c62148;
+    --shadow: 0 8px 24px rgba(28, 35, 51, .12);
   }
 
   body {
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: var(--bg); color: var(--text); min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px;
+    display: flex; flex-direction: column; align-items: center; padding: 20px 16px 40px;
     line-height: 1.5;
   }
-  .wrap { width: 100%; max-width: 760px; }
+  .wrap { width: 100%; max-width: 720px; }
+  button { font-family: inherit; cursor: pointer; }
+  button:disabled { opacity: .35; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* ---------- header ---------- */
-  header { text-align: center; margin-bottom: 16px; }
-  h1 { font-size: 1.7rem; margin-bottom: 6px; color: var(--accent); }
-  .tagline { color: var(--text); font-size: .98rem; }
-  .badges { color: var(--muted); font-size: .82rem; margin-top: 6px; }
-
-  /* ---------- privacy strip ---------- */
-  .privacy-strip {
-    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center;
-    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 14px; margin-bottom: 20px; font-size: .84rem; color: var(--muted);
+  header { margin-bottom: 16px; }
+  .head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  h1 { font-size: 1.3rem; color: var(--accent); }
+  .tagline { color: var(--muted); font-size: .9rem; margin-top: 2px; }
+  .icon-btn {
+    flex: 0 0 auto; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px;
+    background: transparent; color: var(--text); font-size: 1.05rem;
   }
-  .privacy-strip .lock { color: var(--accent); }
+  .icon-btn:hover { border-color: var(--accent); }
+
   .link-btn {
-    background: none; border: none; color: var(--accent); cursor: pointer;
-    font-size: .84rem; font-weight: 600; text-decoration: underline; padding: 0;
+    background: none; border: none; color: var(--accent);
+    font-size: inherit; font-weight: 600; text-decoration: underline; padding: 0;
   }
   .link-btn:hover { filter: brightness(1.15); }
 
+  /* ---------- warnings (no speech / no voices) ---------- */
+  .note {
+    font-size: .84rem; color: var(--muted); line-height: 1.6;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 14px; display: none;
+  }
+  .note.active { display: block; }
+  .note strong { color: var(--warn); }
+
   /* ---------- editor ---------- */
   textarea {
-    width: 100%; min-height: 220px; resize: vertical; padding: 16px;
-    border: 2px solid var(--line); border-radius: 10px; background: var(--panel);
+    width: 100%; min-height: 280px; resize: vertical; padding: 16px;
+    border: 2px solid var(--line); border-radius: 12px; background: var(--panel);
     color: var(--text); font-size: calc(1.05rem * var(--fs)); line-height: 1.6; outline: none;
     font-family: inherit;
   }
   textarea:focus { border-color: var(--accent); }
-  .meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
-    color: var(--muted); font-size: .78rem; margin: 6px 2px 18px; }
-  .meta .counts { display: flex; gap: 12px; }
+  .meta {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 8px 14px; color: var(--muted); font-size: .78rem; margin: 8px 2px 14px;
+  }
+  .meta-right { display: flex; align-items: center; gap: 14px; }
+  kbd {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: .85em; color: var(--text);
+  }
+
+  .primary-btn {
+    width: 100%; padding: 15px 20px; border: none; border-radius: 12px;
+    background: var(--accent); color: var(--btn-text);
+    font-size: 1.1rem; font-weight: 700; transition: filter .15s;
+  }
+  .primary-btn:hover { filter: brightness(1.07); }
 
   /* ---------- reading view ---------- */
   .read-toolbar {
@@ -90,201 +120,233 @@
   .bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
   .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .reader {
-    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
-    padding: 20px; min-height: 220px; max-height: 52vh; overflow-y: auto;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+    padding: 20px; min-height: 200px; max-height: 58vh; overflow-y: auto;
     font-size: calc(1.15rem * var(--fs)); line-height: 1.9; color: var(--text);
     white-space: pre-wrap;
   }
   .reader .chunk { cursor: pointer; border-radius: 4px; transition: background .15s; padding: 1px 0; }
-  .reader .chunk:hover { background: rgba(78,204,163,.16); }
+  .reader .chunk:hover { background: rgba(78, 204, 163, .16); }
   .reader .chunk.cur {
     background: var(--cur-bg); color: var(--cur-text); box-shadow: 0 0 0 3px var(--cur-bg);
   }
 
-  /* ---------- controls ---------- */
-  .controls {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    padding: 18px; display: flex; flex-direction: column; gap: 16px; margin-top: 18px;
+  .btn-ghost {
+    padding: 10px 14px; background: transparent; border: 2px solid var(--line); border-radius: 10px;
+    color: var(--muted); font-size: .9rem; font-weight: 500;
   }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+  /* Playback transport — sticky so it stays reachable on phones while reading */
+  .transport {
+    position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex; gap: 10px; justify-content: center; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 10px; margin-top: 14px; box-shadow: var(--shadow);
+  }
+  .t-btn {
+    width: 52px; height: 52px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel2); color: var(--text); font-size: 1.2rem;
+  }
+  .t-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .t-main {
+    width: 68px; height: 56px; border: none; background: var(--accent);
+    color: var(--btn-text); font-size: 1.35rem;
+  }
+  .t-main:hover:not(:disabled) { filter: brightness(1.07); }
+
+  /* ---------- support nudge (appears once, after a long read finishes) ---------- */
+  .nudge {
+    position: relative; margin-top: 14px; padding: 14px 44px 14px 16px;
+    background: var(--panel2); border: 1px solid var(--accent); border-radius: 12px;
+    font-size: .92rem; line-height: 1.6;
+  }
+  .nudge a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .nudge a:hover { text-decoration: underline; }
+  .nudge-x {
+    position: absolute; top: 8px; right: 8px; width: 30px; height: 30px;
+    background: transparent; border: none; color: var(--muted); font-size: 1rem; border-radius: 8px;
+  }
+  .nudge-x:hover { color: var(--text); }
+
+  /* ---------- collapsible boxes (settings + privacy details) ---------- */
+  details.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  details.box summary {
+    cursor: pointer; padding: 14px 16px; color: var(--text); font-weight: 600; list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  details.box summary::-webkit-details-marker { display: none; }
+  details.box summary .sum-label { white-space: nowrap; }
+  details.box summary .sum-label::before { content: '▸ '; color: var(--accent); }
+  details.box[open] summary .sum-label::before { content: '▾ '; }
+  .sum-status {
+    flex: 1; min-width: 0; text-align: right;
+    font-size: .78rem; font-weight: 500; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  details.settings { margin-top: 14px; }
+  .settings-body { padding: 2px 16px 18px; display: flex; flex-direction: column; gap: 18px; }
+
   .row { display: flex; flex-direction: column; gap: 6px; }
-  label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
   .voice-row { display: flex; gap: 8px; align-items: center; }
   select {
     flex: 1; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px;
-    background: var(--panel2); color: var(--text); font-size: .95rem; outline: none; min-width: 0;
+    background: var(--panel2); color: var(--text); font-size: 1rem; outline: none; min-width: 0;
   }
   select:focus { border-color: var(--accent); }
   .voice-filter {
-    width: 100%; padding: 8px 12px; border: 2px solid var(--line); border-radius: 8px;
-    background: var(--panel2); color: var(--text); font-size: .9rem; outline: none; margin-bottom: 2px;
+    width: 100%; padding: 9px 12px; border: 2px solid var(--line); border-radius: 8px;
+    background: var(--panel2); color: var(--text); font-size: 1rem; outline: none; margin-bottom: 2px;
   }
   .voice-filter:focus { border-color: var(--accent); }
   .voice-filter::placeholder { color: var(--muted); }
   .local-toggle {
     display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text);
-    text-transform: none; letter-spacing: 0; margin-top: 10px; cursor: pointer;
+    text-transform: none; letter-spacing: 0; margin-top: 8px; cursor: pointer;
   }
   .local-toggle input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
-  .privacy-note { font-size: .78rem; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .privacy-note { font-size: .78rem; color: var(--muted); line-height: 1.5; }
   .privacy-note.safe { color: var(--accent); }
-  .privacy-note.warn { color: #ff8fa3; }
-  html[data-theme="light"] .privacy-note.warn { color: #c62148; }
+  .privacy-note.warn { color: var(--warn); }
 
   .sliders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-  @media (max-width: 560px) { .sliders { grid-template-columns: 1fr; } }
   .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
   .slider-val { color: var(--accent); font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums; }
-  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  input[type=range] { width: 100%; height: 28px; accent-color: var(--accent); cursor: pointer; }
 
-  .appearance { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+  .appearance { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; justify-content: space-between; }
   .app-item { display: flex; flex-direction: column; gap: 6px; }
   .stepper { display: flex; align-items: center; gap: 8px; }
-  .stepper span { min-width: 46px; text-align: center; color: var(--accent); font-weight: 600;
-    font-variant-numeric: tabular-nums; font-size: .9rem; }
-
-  /* ---------- buttons ---------- */
-  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
-  .btns.secondary { margin-top: -4px; }
-  button {
-    flex: 1; min-width: 96px; padding: 14px 18px; border: none; border-radius: 10px;
-    font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: filter .15s, opacity .15s;
-    color: var(--btn-text);
+  .stepper span {
+    min-width: 46px; text-align: center; color: var(--accent); font-weight: 600;
+    font-variant-numeric: tabular-nums; font-size: .9rem;
   }
-  button:hover:not(:disabled) { filter: brightness(1.08); }
-  button:disabled { opacity: .4; cursor: default; }
-  #playBtn { background: var(--accent); }
-  #pauseBtn { background: #ffd86b; color: #07131f; }
-  #stopBtn { background: #ff7591; color: #07131f; }
-  .btn-ghost {
-    flex: 0 0 auto; min-width: 0; padding: 10px 14px; background: transparent;
-    color: var(--muted); border: 2px solid var(--line); font-size: .9rem; font-weight: 500;
-  }
-  .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); filter: none; }
-  .btn-ghost.skip { padding: 14px 16px; font-size: 1.1rem; }
-
-  .note {
-    margin-top: 18px; font-size: .8rem; color: var(--muted); line-height: 1.6;
-    background: var(--panel2); border-radius: 8px; padding: 12px 14px; display: none;
-  }
-  .note.active { display: block; }
-  .note strong { color: #ff8fa3; }
-  kbd {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
-    padding: 1px 6px; font-size: .85em; color: var(--text);
-  }
+  .appearance .link-btn { font-size: .82rem; margin-bottom: 10px; }
 
   /* ---------- footer ---------- */
-  footer { width: 100%; max-width: 760px; margin-top: 30px; font-size: .82rem; color: var(--muted); }
-  .support {
-    text-align: center; background: var(--panel2); border: 1px solid var(--line);
-    border-radius: 10px; padding: 12px 16px; line-height: 1.6;
-  }
+  footer { width: 100%; max-width: 720px; margin-top: 36px; font-size: .82rem; color: var(--muted); }
+  .support { text-align: center; margin-bottom: 14px; line-height: 1.6; }
   .support a { color: var(--accent); font-weight: 600; text-decoration: none; }
   .support a:hover { text-decoration: underline; }
-  details.how { margin-top: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-  details.how summary { cursor: pointer; padding: 12px 16px; color: var(--text); font-weight: 600; list-style: none; }
-  details.how summary::-webkit-details-marker { display: none; }
-  details.how summary::before { content: '▸ '; color: var(--accent); }
-  details.how[open] summary::before { content: '▾ '; }
   .how-body { padding: 0 16px 16px; line-height: 1.7; }
   .how-body ul { margin: 6px 0 12px 18px; }
   .how-body li { margin-bottom: 4px; }
   .how-body strong { color: var(--text); }
-  .fineprint { text-align: center; margin-top: 16px; line-height: 1.6; }
+  .fineprint { text-align: center; margin-top: 16px; line-height: 1.8; }
+
+  /* ---------- small screens ---------- */
+  @media (max-width: 620px) {
+    body { padding: 14px 12px 30px; }
+    h1 { font-size: 1.15rem; }
+    textarea { min-height: 44vh; }
+    .sliders { grid-template-columns: 1fr; }
+    .reader { padding: 14px; max-height: 55vh; }
+  }
+  /* Keyboard hints are useless on touch devices */
+  @media (hover: none) { .tip { display: none; } }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>📖 Offline Manuscript Reader</h1>
-      <p class="tagline">Paste your draft and have it read aloud using your browser's built-in voices.</p>
-      <p class="badges">No account · No upload · No analytics · No AI processing</p>
+      <div class="head-row">
+        <h1>📖 Offline Manuscript Reader</h1>
+        <button class="icon-btn" id="themeBtn" title="Switch theme" aria-label="Switch theme">☀</button>
+      </div>
+      <p class="tagline">Hear your draft read aloud, privately — no upload, no account, no AI.</p>
     </header>
 
-    <div class="privacy-strip">
-      <span><span class="lock">🔒</span> Runs entirely in your browser — your text isn't uploaded, stored, or sent anywhere by this page.</span>
-      <button class="link-btn" id="downloadBtn" title="Save a copy of this page to use offline">⬇ Download this page for offline use</button>
-    </div>
+    <div class="note" id="note"></div>
 
     <!-- ===== EDIT VIEW ===== -->
     <div id="editView">
-      <textarea id="text" placeholder="Paste or type the text you want read aloud…&#10;&#10;Tip: select part of the text before pressing Play to read just that selection."></textarea>
+      <textarea id="text" placeholder="Paste your draft here…&#10;&#10;Tip: select a passage before pressing Read aloud to hear just that part."></textarea>
       <div class="meta">
-        <span class="counts">
-          <span id="wordCount">0 words</span>
-          <span id="charCount">0 characters</span>
+        <span id="counts">0 words · 0 characters</span>
+        <span class="meta-right">
+          <span class="tip"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> plays</span>
+          <button class="link-btn" id="clearBtn" title="Clear the text box">Clear</button>
         </span>
-        <span>Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to play</span>
       </div>
+      <button class="primary-btn" id="readBtn"
+        title="Read the text aloud (Ctrl+Enter). Select a passage first to read only that part.">▶ Read aloud</button>
     </div>
 
     <!-- ===== READING VIEW ===== -->
     <div id="readView" hidden>
       <div class="read-toolbar">
-        <button class="btn-ghost" id="editBtn" title="Return to the text editor (Esc)">✎ Edit text</button>
+        <button class="btn-ghost" id="editBtn" title="Back to editing (Esc)">← Edit text</button>
         <span class="read-status"><span id="nowCount">Ready</span><span class="sel-badge" id="selBadge">selection</span></span>
       </div>
       <div class="bar"><div class="bar-fill" id="barFill"></div></div>
       <div class="reader" id="reader" title="Click any sentence to read from there"></div>
+
+      <!-- Support nudge: shown at most once per visit, only after a long read
+           completes, and never again once dismissed (dismissal is stored as a
+           setting). The link is never contacted automatically — click-only. -->
+      <div class="nudge" id="nudge" hidden>
+        <button class="nudge-x" id="nudgeClose" title="Hide this permanently (a quiet link stays in the footer)"
+          aria-label="Hide this message permanently">✕</button>
+        <strong>That's your draft, read aloud</strong> — on your device, nothing uploaded.
+        If it helped you catch something, you can
+        <a id="nudgeLink" href="#" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a>.
+      </div>
+
+      <div class="transport">
+        <button class="t-btn" id="prevBtn" title="Previous sentence (←)" aria-label="Previous sentence">⏮</button>
+        <button class="t-btn t-main" id="ppBtn" title="Play / pause (Space)" aria-label="Play">▶</button>
+        <button class="t-btn" id="stopBtn" title="Stop" aria-label="Stop" disabled>⏹</button>
+        <button class="t-btn" id="nextBtn" title="Next sentence (→)" aria-label="Next sentence">⏭</button>
+      </div>
     </div>
 
-    <!-- ===== CONTROLS ===== -->
-    <div class="controls">
-      <div class="row">
-        <label for="voice">Voice</label>
-        <input id="voiceFilter" class="voice-filter" placeholder="Filter by language or name — e.g. en-US, French, Zira">
-        <div class="voice-row">
-          <select id="voice"></select>
-          <button class="btn-ghost" id="testBtn" title="Hear a sample of this voice">Test</button>
+    <!-- ===== SETTINGS (collapsed by default — keeps the first view simple) ===== -->
+    <details class="box settings" id="settingsBox">
+      <summary>
+        <span class="sum-label">⚙️ Voice &amp; settings</span>
+        <span class="sum-status" id="sumStatus"></span>
+      </summary>
+      <div class="settings-body">
+        <div class="row">
+          <label for="voice">Voice</label>
+          <input id="voiceFilter" class="voice-filter" placeholder="Search voices — e.g. en-US, French, Zira" hidden>
+          <div class="voice-row">
+            <select id="voice"></select>
+            <button class="btn-ghost" id="testBtn" title="Hear a short sample of this voice">Test</button>
+          </div>
+          <label class="local-toggle"><input type="checkbox" id="localOnly" checked> 🔒 Local voices only — never send text off this device</label>
+          <div class="privacy-note" id="privacyNote"></div>
         </div>
-        <label class="local-toggle"><input type="checkbox" id="localOnly" checked> 🔒 Local voices only — never send text off this computer</label>
-        <div class="privacy-note" id="privacyNote"></div>
-      </div>
 
-      <div class="sliders">
-        <div class="row">
-          <div class="slider-head"><label for="rate">Speed</label><span class="slider-val" id="rateVal">1.0×</span></div>
-          <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
-        </div>
-        <div class="row">
-          <div class="slider-head"><label for="pitch">Pitch</label><span class="slider-val" id="pitchVal">1.0</span></div>
-          <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
-        </div>
-        <div class="row">
-          <div class="slider-head"><label for="volume">Volume</label><span class="slider-val" id="volumeVal">100%</span></div>
-          <input type="range" id="volume" min="0" max="1" step="0.05" value="1">
-        </div>
-      </div>
-
-      <div class="appearance">
-        <div class="app-item">
-          <label>Theme</label>
-          <button class="btn-ghost" id="themeBtn">🌙 Dark</button>
-        </div>
-        <div class="app-item">
-          <label>Text size</label>
-          <div class="stepper">
-            <button class="btn-ghost" id="fontDown" title="Smaller text">A−</button>
-            <span id="fontVal">100%</span>
-            <button class="btn-ghost" id="fontUp" title="Larger text">A+</button>
+        <div class="sliders">
+          <div class="row">
+            <div class="slider-head"><label for="rate">Speed</label><span class="slider-val" id="rateVal">1.0×</span></div>
+            <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+          </div>
+          <div class="row">
+            <div class="slider-head"><label for="pitch">Pitch</label><span class="slider-val" id="pitchVal">1.0</span></div>
+            <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
+          </div>
+          <div class="row">
+            <div class="slider-head"><label for="volume">Volume</label><span class="slider-val" id="volumeVal">100%</span></div>
+            <input type="range" id="volume" min="0" max="1" step="0.05" value="1">
           </div>
         </div>
-      </div>
 
-      <div class="btns">
-        <button class="btn-ghost skip" id="prevBtn" disabled title="Previous sentence (←)">⏮</button>
-        <button id="playBtn">▶ Play</button>
-        <button id="pauseBtn" disabled>⏸ Pause</button>
-        <button class="btn-ghost skip" id="nextBtn" disabled title="Next sentence (→)">⏭</button>
-        <button id="stopBtn" disabled>⏹ Stop</button>
+        <div class="appearance">
+          <div class="app-item">
+            <label>Text size</label>
+            <div class="stepper">
+              <button class="btn-ghost" id="fontDown" title="Smaller text">A−</button>
+              <span id="fontVal">100%</span>
+              <button class="btn-ghost" id="fontUp" title="Larger text">A+</button>
+            </div>
+          </div>
+          <button class="link-btn" id="resetBtn" title="Reset speed, pitch and volume to defaults">↺ Reset speed &amp; pitch</button>
+        </div>
       </div>
-      <div class="btns secondary">
-        <button class="btn-ghost" id="clearBtn" title="Clear the text box">🗑 Clear text</button>
-        <button class="btn-ghost" id="resetBtn" title="Reset speed / pitch / volume">↺ Reset sliders</button>
-      </div>
-    </div>
-
-    <div class="note" id="note"></div>
+    </details>
   </div>
 
   <footer>
@@ -293,12 +355,12 @@
       <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a>.
     </p>
 
-    <details class="how">
-      <summary>How privacy works &amp; limitations</summary>
+    <details class="box how">
+      <summary><span class="sum-label">How privacy works &amp; limitations</span></summary>
       <div class="how-body">
         <p><strong>What this page does</strong></p>
         <ul>
-          <li>Reads your text aloud using text-to-speech voices already installed on your computer.</li>
+          <li>Reads your text aloud using text-to-speech voices already installed on your device.</li>
           <li>Keeps your draft in the page only. It is <strong>not</strong> saved anywhere by this page — closing or reloading the tab discards it.</li>
         </ul>
         <p><strong>What this page does not do</strong></p>
@@ -314,10 +376,10 @@
         synthesised. This tool tries to identify local voices — labelling them where the browser exposes that
         information — and defaults to <em>“Local voices only.”</em> Where the browser doesn't tell us, treat a voice
         as unknown. For maximum privacy, use a known local system voice (on Windows these are often named Microsoft
-        David, Zira, Mark, etc.) and run offline.</p>
+        David, Zira or Mark; on macOS, voices like Samantha) and run offline.</p>
         <p><strong>For maximum privacy</strong></p>
         <ul>
-          <li>Click “Download this page for offline use.”</li>
+          <li>Click “Download this page for offline use” (bottom of this page).</li>
           <li>Disconnect from the internet.</li>
           <li>Open the downloaded file in your browser.</li>
           <li>Paste your draft and listen locally.</li>
@@ -329,8 +391,9 @@
       </div>
     </details>
 
-    <p class="fineprint">This page makes no intentional network requests. It uses only your browser's built-in
-      <code>speechSynthesis</code> API. Open your browser's DevTools → Network tab and press Play to verify.</p>
+    <p class="fineprint">This page makes no intentional network requests — press Play and check DevTools → Network to verify.<br>
+      <button class="link-btn" id="downloadBtn" title="Save a copy of this page to use offline">⬇ Download this page for offline use</button>
+    </p>
   </footer>
 
 <script>
@@ -338,10 +401,13 @@
   // ============================================================================
   // Configuration
   // ============================================================================
-  // Support / donation link. Replace with your own Buy Me a Coffee URL (or any
-  // link). This is the ONLY outbound link on the page and is never contacted
-  // automatically — nothing happens unless the visitor clicks it.
+  // Support / donation link. This is the ONLY outbound link on the page (used by
+  // the footer link and the post-read nudge) and is never contacted automatically
+  // — nothing happens unless the visitor clicks it.
   const SUPPORT_URL = 'https://buymeacoffee.com/andrifr';
+  // Show the support nudge only after a completed read of at least this many
+  // sentences (i.e. after the tool has actually been useful).
+  const NUDGE_MIN_CHUNKS = 15;
 
   const synth = window.speechSynthesis;
   const $ = id => document.getElementById(id);
@@ -349,21 +415,29 @@
   const localOnly = $('localOnly'), privacyNote = $('privacyNote');
   const rate = $('rate'), pitch = $('pitch'), volume = $('volume');
   const rateVal = $('rateVal'), pitchVal = $('pitchVal'), volumeVal = $('volumeVal');
-  const playBtn = $('playBtn'), pauseBtn = $('pauseBtn'), stopBtn = $('stopBtn');
+  const readBtn = $('readBtn'), ppBtn = $('ppBtn'), stopBtn = $('stopBtn');
   const prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
   const editView = $('editView'), readView = $('readView'), reader = $('reader');
   const editBtn = $('editBtn'), barFill = $('barFill'), nowCount = $('nowCount'), selBadge = $('selBadge');
   const themeBtn = $('themeBtn'), fontVal = $('fontVal'), note = $('note');
+  const settingsBox = $('settingsBox'), sumStatus = $('sumStatus');
+  const nudge = $('nudge'), counts = $('counts');
 
   let voices = [], chunks = [], idx = 0;
   let playing = false, paused = false, inRead = false, curUtter = null;
-  let selectedVoiceName = '', lastSpan = null;
+  let selectedVoiceName = '', lastSpan = null, nudgeShown = false;
 
-  // Wire up the (never-auto-contacted) support link.
+  // Respect reduced-motion preferences when auto-scrolling the reader.
+  const scrollBehavior = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth';
+
+  // Wire up the (never-auto-contacted) support links.
   $('supportLink').href = SUPPORT_URL;
+  $('nudgeLink').href = SUPPORT_URL;
 
   // ============================================================================
   // Persistence — SETTINGS ONLY. The manuscript text is never stored.
+  // (Keys: voice, rate, pitch, volume, localOnly, theme, fontScale, settings-panel
+  //  open state, and whether the support nudge was dismissed.)
   // ============================================================================
   const LS = {
     get: (k, d) => { try { const v = localStorage.getItem('tts_' + k); return v === null ? d : v; } catch (e) { return d; } },
@@ -375,9 +449,24 @@
   // ============================================================================
   if (!synth) {
     note.classList.add('active');
-    note.innerHTML = '<strong>This browser has no speech synthesis.</strong> Try Microsoft Edge or Google Chrome.';
-    [playBtn, pauseBtn, stopBtn, prevBtn, nextBtn].forEach(b => b.disabled = true);
+    note.innerHTML = '<strong>This browser has no speech synthesis.</strong> Try Microsoft Edge, Google Chrome or Firefox.';
+    [readBtn, ppBtn, stopBtn, prevBtn, nextBtn].forEach(b => b.disabled = true);
     return;
+  }
+
+  // ============================================================================
+  // Platform hints (computed locally from the user agent — no network)
+  // ============================================================================
+  function platformHint() {
+    const ua = navigator.userAgent;
+    if (/Android/i.test(ua)) return 'On Android, voices come from Settings → Accessibility → Text-to-speech output (Speech Services by Google).';
+    if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1))
+      return 'On iPhone/iPad, add voices in Settings → Accessibility → Spoken Content → Voices.';
+    if (/Windows/i.test(ua)) return 'On Windows, add voices in Settings → Time & language → Speech.';
+    if (/CrOS/.test(ua)) return 'On ChromeOS, voices come from Settings → Accessibility → Text-to-speech.';
+    if (/Macintosh/i.test(ua)) return 'On macOS, add voices in System Settings → Accessibility → Spoken Content. (Safari hides some downloaded voices — Chrome or Firefox lists more.)';
+    if (/Linux/i.test(ua)) return 'On Linux, install speech-dispatcher and espeak-ng, then restart your browser (Firefox has the best support).';
+    return '';
   }
 
   // ============================================================================
@@ -417,17 +506,21 @@
       if (firstLocal) { selectedVoiceName = firstLocal.name; LS.set('voice', selectedVoiceName); }
     }
 
+    // Only show the search box when there are enough voices to need it.
+    voiceFilter.hidden = allowed.length <= 12 && !(voiceFilter.value || '').trim();
+
     const f = (voiceFilter.value || '').trim().toLowerCase();
     const list = allowed.filter(v =>
       !f || (v.name + ' ' + v.lang + ' ' + langLabel(v.lang)).toLowerCase().includes(f));
 
     if (!list.length) {
       const why = (localOnly.checked && !allowed.length)
-        ? 'No offline voices are installed. Add them in Windows Settings → Time &amp; language → Speech, or untick “Local voices only”.'
+        ? 'No offline voices are installed. ' + esc(platformHint()) + ' Or untick “Local voices only”.'
         : 'No voices match “' + esc(voiceFilter.value) + '”.';
       voiceSel.innerHTML = '<option value="">— none —</option>';
       privacyNote.className = 'privacy-note warn';
       privacyNote.innerHTML = why;
+      updateSumStatus();
       return;
     }
     const order = [], groups = {};
@@ -440,12 +533,13 @@
     if (selectedVoiceName && list.some(v => v.name === selectedVoiceName)) voiceSel.value = selectedVoiceName;
     else voiceSel.selectedIndex = 0;
     updatePrivacyNote();
+    updateSumStatus();
   }
 
   function updatePrivacyNote() {
     if (localOnly.checked) {
       privacyNote.className = 'privacy-note safe';
-      privacyNote.innerHTML = '🔒 Local only: your text stays on this computer and is never sent anywhere.';
+      privacyNote.innerHTML = '🔒 Local only: your text stays on this device and is never sent anywhere.';
       return;
     }
     const v = chosenVoice();
@@ -454,8 +548,14 @@
       privacyNote.innerHTML = '⚠️ This is an <strong>online</strong> voice — pressing Play <strong>sends your text over the internet</strong> to its provider (e.g. Microsoft/Google).';
     } else {
       privacyNote.className = 'privacy-note';
-      privacyNote.innerHTML = 'This voice is local — text stays on your computer. (Voices marked “· online” would send the text to their provider.)';
+      privacyNote.innerHTML = 'This voice is local — text stays on your device. (Voices marked “· online” would send the text to their provider.)';
     }
+  }
+
+  // Keep the collapsed settings summary informative: current voice + speed.
+  function updateSumStatus() {
+    const v = chosenVoice();
+    sumStatus.textContent = (v ? v.name : 'No voice') + ' · ' + parseFloat(rate.value).toFixed(1) + '×';
   }
 
   function loadVoices() {
@@ -465,11 +565,27 @@
     renderVoiceOptions();
     if (voices.every(v => !v.localService)) {
       note.classList.add('active');
-      note.innerHTML = 'Only <strong>online</strong> voices are available here — they need an internet connection and may send your text to a provider. Local voices (Microsoft David/Zira, etc.) keep text on your computer; add them via Windows Settings → Time &amp; language → Speech.';
+      note.dataset.kind = 'voices';
+      note.innerHTML = 'Only <strong>online</strong> voices are available here — they need an internet connection and may send your text to a provider. ' + esc(platformHint());
+    } else if (note.dataset.kind === 'voices') {
+      // Local voices arrived after all (voice lists load async) — clear the warning.
+      note.classList.remove('active');
+      note.innerHTML = '';
+      delete note.dataset.kind;
     }
   }
   loadVoices();
   if (typeof synth.onvoiceschanged !== 'undefined') synth.onvoiceschanged = loadVoices;
+
+  // Voice lists load asynchronously; if nothing has arrived after a moment, the
+  // system likely has no TTS voices at all (common on Linux without espeak).
+  setTimeout(() => {
+    if (!voices.length) {
+      note.classList.add('active');
+      note.dataset.kind = 'voices';
+      note.innerHTML = '<strong>No text-to-speech voices were found.</strong> ' + esc(platformHint()) + ' Then reload this page.';
+    }
+  }, 2500);
 
   function chosenVoice() {
     let v = voices.find(x => x.name === selectedVoiceName) || voices.find(x => x.name === voiceSel.value) || null;
@@ -524,7 +640,7 @@
     const span = reader.querySelector('.chunk[data-idx="' + i + '"]');
     if (span) {
       span.classList.add('cur');
-      span.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      span.scrollIntoView({ block: 'center', behavior: scrollBehavior });
       lastSpan = span;
     }
   }
@@ -541,12 +657,14 @@
     inRead = true;
     editView.hidden = true;
     readView.hidden = false;
+    window.scrollTo({ top: 0, behavior: scrollBehavior });
   }
   function enterEditMode() {
     stop();
     inRead = false;
     readView.hidden = true;
     editView.hidden = false;
+    nudge.hidden = true; // the moment has passed; the footer link remains
     selBadge.classList.remove('active');
     setState(false, false);
     textEl.focus();
@@ -602,8 +720,11 @@
       if (!chunks.length) return;
       renderReader();
       enterReadMode();
+      beginRead(0);
+    } else {
+      // Stopped mid-read: resume from the stopped sentence. Finished: start over.
+      beginRead(idx >= chunks.length ? 0 : idx);
     }
-    beginRead(0);
   }
   function pause() {
     if (playing && !paused) { try { synth.pause(); } catch (e) {} paused = true; setState(true, true); }
@@ -618,10 +739,11 @@
   }
   function finish() {
     barFill.style.width = '100%';
-    nowCount.textContent = 'Done';
+    nowCount.textContent = 'Done — ' + chunks.length + ' sentences';
     playing = false; paused = false; curUtter = null;
     if (lastSpan) { lastSpan.classList.remove('cur'); lastSpan = null; }
     setState(false, false);
+    maybeNudge();
   }
   // Jump to a chunk (click-to-read / skip). Only meaningful in reading mode.
   function jumpTo(i) {
@@ -630,9 +752,10 @@
   }
 
   function setState(isPlaying, isPaused) {
-    playBtn.textContent = isPaused ? '▶ Resume' : '▶ Play';
-    playBtn.disabled = isPlaying && !isPaused;
-    pauseBtn.disabled = !isPlaying || isPaused;
+    const showPause = isPlaying && !isPaused;
+    ppBtn.textContent = showPause ? '⏸' : '▶';
+    ppBtn.title = showPause ? 'Pause (Space)' : (isPaused ? 'Resume (Space)' : 'Play (Space)');
+    ppBtn.setAttribute('aria-label', ppBtn.title);
     stopBtn.disabled = !isPlaying;
     prevBtn.disabled = !inRead;
     nextBtn.disabled = !inRead;
@@ -640,6 +763,23 @@
 
   // Chrome sometimes silently pauses long playback — nudge it back if we didn't pause.
   setInterval(() => { if (playing && !paused && synth.paused) { try { synth.resume(); } catch (e) {} } }, 5000);
+
+  // ============================================================================
+  // Support nudge — shown once per visit, only after a long read completes.
+  // Dismissing it stores a setting so it never appears again; the quiet footer
+  // link stays either way.
+  // ============================================================================
+  function maybeNudge() {
+    if (nudgeShown || chunks.length < NUDGE_MIN_CHUNKS) return;
+    if (LS.get('nudge', '') === 'off') return;
+    nudgeShown = true;
+    nudge.hidden = false;
+    nudge.scrollIntoView({ block: 'nearest', behavior: scrollBehavior });
+  }
+  $('nudgeClose').addEventListener('click', () => {
+    nudge.hidden = true;
+    LS.set('nudge', 'off');
+  });
 
   // ============================================================================
   // Download this page for offline use
@@ -652,6 +792,9 @@
     const t = clone.querySelector('#text'); if (t) t.textContent = '';
     const ev = clone.querySelector('#editView'); if (ev) ev.hidden = false;
     const rv = clone.querySelector('#readView'); if (rv) rv.hidden = true;
+    const n = clone.querySelector('#nudge'); if (n) n.hidden = true;
+    const no = clone.querySelector('#note'); if (no) { no.className = 'note'; no.innerHTML = ''; }
+    const sb = clone.querySelector('#settingsBox'); if (sb) sb.removeAttribute('open');
     const html = '<!DOCTYPE html>\n' + clone.outerHTML;
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -667,7 +810,10 @@
   let theme = LS.get('theme', 'dark');
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme);
-    themeBtn.textContent = theme === 'light' ? '☀ Light' : '🌙 Dark';
+    // The button shows the theme you'd switch TO.
+    themeBtn.textContent = theme === 'dark' ? '☀' : '🌙';
+    themeBtn.title = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+    themeBtn.setAttribute('aria-label', themeBtn.title);
   }
   let fontScale = parseFloat(LS.get('fontScale', '1')) || 1;
   function applyFont() {
@@ -682,24 +828,24 @@
   function fmtPitch(v) { return parseFloat(v).toFixed(1); }
   function fmtVol(v) { return Math.round(parseFloat(v) * 100) + '%'; }
 
-  rate.addEventListener('input', () => { rateVal.textContent = fmtRate(rate.value); LS.set('rate', rate.value); });
+  rate.addEventListener('input', () => { rateVal.textContent = fmtRate(rate.value); LS.set('rate', rate.value); updateSumStatus(); });
   pitch.addEventListener('input', () => { pitchVal.textContent = fmtPitch(pitch.value); LS.set('pitch', pitch.value); });
   volume.addEventListener('input', () => { volumeVal.textContent = fmtVol(volume.value); LS.set('volume', volume.value); });
-  voiceSel.addEventListener('change', () => { selectedVoiceName = voiceSel.value; LS.set('voice', selectedVoiceName); updatePrivacyNote(); });
+  voiceSel.addEventListener('change', () => { selectedVoiceName = voiceSel.value; LS.set('voice', selectedVoiceName); updatePrivacyNote(); updateSumStatus(); });
   voiceFilter.addEventListener('input', renderVoiceOptions);
   localOnly.addEventListener('change', () => { LS.set('localOnly', localOnly.checked ? '1' : '0'); renderVoiceOptions(); });
 
   function updateCounts() {
     const words = (textEl.value.trim().match(/\S+/g) || []).length;
     const chars = textEl.value.length;
-    $('wordCount').textContent = words + (words === 1 ? ' word' : ' words');
-    $('charCount').textContent = chars + (chars === 1 ? ' character' : ' characters');
+    counts.textContent = words.toLocaleString() + (words === 1 ? ' word' : ' words')
+      + ' · ' + chars.toLocaleString() + (chars === 1 ? ' character' : ' characters');
   }
   // NOTE: intentionally does NOT persist textEl.value — the manuscript never leaves the page.
   textEl.addEventListener('input', updateCounts);
 
-  playBtn.addEventListener('click', play);
-  pauseBtn.addEventListener('click', pause);
+  readBtn.addEventListener('click', play);
+  ppBtn.addEventListener('click', () => { if (playing && !paused) pause(); else play(); });
   stopBtn.addEventListener('click', stop);
   prevBtn.addEventListener('click', () => jumpTo(idx - 1));
   nextBtn.addEventListener('click', () => jumpTo(idx + 1));
@@ -716,6 +862,10 @@
   });
 
   $('clearBtn').addEventListener('click', () => {
+    // The draft is never stored anywhere, so clearing can't be undone — confirm
+    // before discarding anything substantial.
+    if (textEl.value.length > 400 &&
+        !confirm('Clear the pasted text? It isn\'t stored anywhere, so this can\'t be undone.')) return;
     if (inRead) enterEditMode();
     textEl.value = '';
     updateCounts();
@@ -726,6 +876,7 @@
     rate.value = 1; pitch.value = 1; volume.value = 1;
     rateVal.textContent = '1.0×'; pitchVal.textContent = '1.0'; volumeVal.textContent = '100%';
     LS.set('rate', '1'); LS.set('pitch', '1'); LS.set('volume', '1');
+    updateSumStatus();
   });
 
   themeBtn.addEventListener('click', () => {
@@ -738,6 +889,10 @@
   $('fontDown').addEventListener('click', () => {
     fontScale = Math.max(0.8, +(fontScale - 0.1).toFixed(2)); applyFont(); LS.set('fontScale', String(fontScale));
   });
+
+  // Remember whether the settings panel was left open (a setting, not content).
+  settingsBox.open = LS.get('settingsOpen', '0') === '1';
+  settingsBox.addEventListener('toggle', () => LS.set('settingsOpen', settingsBox.open ? '1' : '0'));
 
   document.addEventListener('keydown', e => {
     const inField = /^(TEXTAREA|INPUT|SELECT)$/.test((e.target.tagName || ''));
@@ -760,6 +915,7 @@
   applyFont();
   if (voices.length) renderVoiceOptions();
   updatePrivacyNote();
+  updateSumStatus();
   updateCounts();
 
   // Stop speech if the page is closed/navigated (avoids it continuing in the background).

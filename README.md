@@ -40,6 +40,7 @@ keeps working with the network off.
 - Speed, pitch, and volume controls
 - Word and character count
 - Dark / light theme and adjustable text size
+- Works on desktop and mobile (see [Platform notes](#platform-notes))
 - Remembers your **settings** (voice, speed, theme, …) — but **never your manuscript**
 
 ## How privacy works
@@ -54,6 +55,18 @@ Your text is **not uploaded, stored, or sent to me.**
 - It does not include analytics, tracking, external fonts, or third-party scripts.
 - It makes no intentional network requests. You can verify this in your browser's
   DevTools → Network tab.
+
+## Platform notes
+
+The tool works in any modern browser — the voices come from your operating system:
+
+| Platform | Notes |
+| --- | --- |
+| **Windows** | Works out of the box. Microsoft David / Zira / Mark are local voices. Edge also offers many "Natural" voices that are **online** — the app labels them. |
+| **macOS** | Works out of the box (voices like Samantha are local). Chrome, Edge and Firefox list the most voices; Safari may not show voices you download later. |
+| **Linux** | Install `speech-dispatcher` and `espeak-ng`, then restart the browser. Firefox has the best Linux support. |
+| **iPhone / iPad** | Works in Safari. Manage voices in Settings → Accessibility → Spoken Content → Voices. |
+| **Android** | Works in Chrome/Firefox using Speech Services by Google (Settings → Accessibility → Text-to-speech output). |
 
 ## Important limitation — voices
 
