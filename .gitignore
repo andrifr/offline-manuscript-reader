@@ -1,0 +1,5 @@
+# Editor / OS cruft — not part of the shippable tool
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

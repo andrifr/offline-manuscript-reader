@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline Manuscript Reader</title>
+<!--
+  Offline Manuscript Reader
+  A single-file, privacy-first read-aloud tool for writers.
+
+  This page runs entirely in your browser using your operating system's built-in
+  text-to-speech voices (the SpeechSynthesis API). It makes no intentional network
+  requests: no analytics, no fonts, no scripts, no CDNs, nothing is uploaded.
+
+  The whole app is this one file. Nothing is minified or obfuscated so you can read
+  and verify it. For maximum privacy: download this file, disconnect from the
+  internet, open it, and use a local system voice.
+
+  NOTE on voices: some browsers offer "online"/cloud voices that send your text to a
+  provider (e.g. Microsoft/Google) to be synthesised. This app defaults to
+  "Local voices only" and clearly warns before you use an online voice.
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Dark theme (default) */
+  :root {
+    --bg: #1a1a2e; --panel: #16213e; --panel2: #0d1b36; --line: #0f3460;
+    --accent: #4ecca3; --accent-strong: #4ecca3; --btn-text: #07131f;
+    --text: #eee; --muted: #8a93a6; --cur-bg: #4ecca3; --cur-text: #07131f;
+    --fs: 1;
+  }
+  /* Light theme */
+  html[data-theme="light"] {
+    --bg: #f4f5fa; --panel: #ffffff; --panel2: #eef0f6; --line: #d7dbe8;
+    --accent: #0e7d63; --accent-strong: #0e7d63; --btn-text: #ffffff;
+    --text: #1c2333; --muted: #5a6377; --cur-bg: #0e7d63; --cur-text: #ffffff;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px;
+    line-height: 1.5;
+  }
+  .wrap { width: 100%; max-width: 760px; }
+
+  /* ---------- header ---------- */
+  header { text-align: center; margin-bottom: 16px; }
+  h1 { font-size: 1.7rem; margin-bottom: 6px; color: var(--accent); }
+  .tagline { color: var(--text); font-size: .98rem; }
+  .badges { color: var(--muted); font-size: .82rem; margin-top: 6px; }
+
+  /* ---------- privacy strip ---------- */
+  .privacy-strip {
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 20px; font-size: .84rem; color: var(--muted);
+  }
+  .privacy-strip .lock { color: var(--accent); }
+  .link-btn {
+    background: none; border: none; color: var(--accent); cursor: pointer;
+    font-size: .84rem; font-weight: 600; text-decoration: underline; padding: 0;
+  }
+  .link-btn:hover { filter: brightness(1.15); }
+
+  /* ---------- editor ---------- */
+  textarea {
+    width: 100%; min-height: 220px; resize: vertical; padding: 16px;
+    border: 2px solid var(--line); border-radius: 10px; background: var(--panel);
+    color: var(--text); font-size: calc(1.05rem * var(--fs)); line-height: 1.6; outline: none;
+    font-family: inherit;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    color: var(--muted); font-size: .78rem; margin: 6px 2px 18px; }
+  .meta .counts { display: flex; gap: 12px; }
+
+  /* ---------- reading view ---------- */
+  .read-toolbar {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .read-status { font-size: .8rem; color: var(--muted); }
+  .sel-badge {
+    display: none; font-size: .72rem; color: var(--btn-text); background: var(--accent);
+    border-radius: 999px; padding: 2px 8px; margin-left: 8px; font-weight: 600;
+  }
+  .sel-badge.active { display: inline-block; }
+  .bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+  .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .reader {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 20px; min-height: 220px; max-height: 52vh; overflow-y: auto;
+    font-size: calc(1.15rem * var(--fs)); line-height: 1.9; color: var(--text);
+    white-space: pre-wrap;
+  }
+  .reader .chunk { cursor: pointer; border-radius: 4px; transition: background .15s; padding: 1px 0; }
+  .reader .chunk:hover { background: rgba(78,204,163,.16); }
+  .reader .chunk.cur {
+    background: var(--cur-bg); color: var(--cur-text); box-shadow: 0 0 0 3px var(--cur-bg);
+  }
+
+  /* ---------- controls ---------- */
+  .controls {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; display: flex; flex-direction: column; gap: 16px; margin-top: 18px;
+  }
+  .row { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .voice-row { display: flex; gap: 8px; align-items: center; }
+  select {
+    flex: 1; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px;
+    background: var(--panel2); color: var(--text); font-size: .95rem; outline: none; min-width: 0;
+  }
+  select:focus { border-color: var(--accent); }
+  .voice-filter {
+    width: 100%; padding: 8px 12px; border: 2px solid var(--line); border-radius: 8px;
+    background: var(--panel2); color: var(--text); font-size: .9rem; outline: none; margin-bottom: 2px;
+  }
+  .voice-filter:focus { border-color: var(--accent); }
+  .voice-filter::placeholder { color: var(--muted); }
+  .local-toggle {
+    display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text);
+    text-transform: none; letter-spacing: 0; margin-top: 10px; cursor: pointer;
+  }
+  .local-toggle input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .privacy-note { font-size: .78rem; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .privacy-note.safe { color: var(--accent); }
+  .privacy-note.warn { color: #ff8fa3; }
+  html[data-theme="light"] .privacy-note.warn { color: #c62148; }
+
+  .sliders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .sliders { grid-template-columns: 1fr; } }
+  .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-val { color: var(--accent); font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+  .appearance { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+  .app-item { display: flex; flex-direction: column; gap: 6px; }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper span { min-width: 46px; text-align: center; color: var(--accent); font-weight: 600;
+    font-variant-numeric: tabular-nums; font-size: .9rem; }
+
+  /* ---------- buttons ---------- */
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btns.secondary { margin-top: -4px; }
+  button {
+    flex: 1; min-width: 96px; padding: 14px 18px; border: none; border-radius: 10px;
+    font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: filter .15s, opacity .15s;
+    color: var(--btn-text);
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .4; cursor: default; }
+  #playBtn { background: var(--accent); }
+  #pauseBtn { background: #ffd86b; color: #07131f; }
+  #stopBtn { background: #ff7591; color: #07131f; }
+  .btn-ghost {
+    flex: 0 0 auto; min-width: 0; padding: 10px 14px; background: transparent;
+    color: var(--muted); border: 2px solid var(--line); font-size: .9rem; font-weight: 500;
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); filter: none; }
+  .btn-ghost.skip { padding: 14px 16px; font-size: 1.1rem; }
+
+  .note {
+    margin-top: 18px; font-size: .8rem; color: var(--muted); line-height: 1.6;
+    background: var(--panel2); border-radius: 8px; padding: 12px 14px; display: none;
+  }
+  .note.active { display: block; }
+  .note strong { color: #ff8fa3; }
+  kbd {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: .85em; color: var(--text);
+  }
+
+  /* ---------- footer ---------- */
+  footer { width: 100%; max-width: 760px; margin-top: 30px; font-size: .82rem; color: var(--muted); }
+  .support {
+    text-align: center; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 16px; line-height: 1.6;
+  }
+  .support a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .support a:hover { text-decoration: underline; }
+  details.how { margin-top: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  details.how summary { cursor: pointer; padding: 12px 16px; color: var(--text); font-weight: 600; list-style: none; }
+  details.how summary::-webkit-details-marker { display: none; }
+  details.how summary::before { content: '▸ '; color: var(--accent); }
+  details.how[open] summary::before { content: '▾ '; }
+  .how-body { padding: 0 16px 16px; line-height: 1.7; }
+  .how-body ul { margin: 6px 0 12px 18px; }
+  .how-body li { margin-bottom: 4px; }
+  .how-body strong { color: var(--text); }
+  .fineprint { text-align: center; margin-top: 16px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📖 Offline Manuscript Reader</h1>
+      <p class="tagline">Paste your draft and have it read aloud using your browser's built-in voices.</p>
+      <p class="badges">No account · No upload · No analytics · No AI processing</p>
+    </header>
+
+    <div class="privacy-strip">
+      <span><span class="lock">🔒</span> Runs entirely in your browser — your text isn't uploaded, stored, or sent anywhere by this page.</span>
+      <button class="link-btn" id="downloadBtn" title="Save a copy of this page to use offline">⬇ Download this page for offline use</button>
+    </div>
+
+    <!-- ===== EDIT VIEW ===== -->
+    <div id="editView">
+      <textarea id="text" placeholder="Paste or type the text you want read aloud…&#10;&#10;Tip: select part of the text before pressing Play to read just that selection."></textarea>
+      <div class="meta">
+        <span class="counts">
+          <span id="wordCount">0 words</span>
+          <span id="charCount">0 characters</span>
+        </span>
+        <span>Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to play</span>
+      </div>
+    </div>
+
+    <!-- ===== READING VIEW ===== -->
+    <div id="readView" hidden>
+      <div class="read-toolbar">
+        <button class="btn-ghost" id="editBtn" title="Return to the text editor (Esc)">✎ Edit text</button>
+        <span class="read-status"><span id="nowCount">Ready</span><span class="sel-badge" id="selBadge">selection</span></span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+      <div class="reader" id="reader" title="Click any sentence to read from there"></div>
+    </div>
+
+    <!-- ===== CONTROLS ===== -->
+    <div class="controls">
+      <div class="row">
+        <label for="voice">Voice</label>
+        <input id="voiceFilter" class="voice-filter" placeholder="Filter by language or name — e.g. en-US, French, Zira">
+        <div class="voice-row">
+          <select id="voice"></select>
+          <button class="btn-ghost" id="testBtn" title="Hear a sample of this voice">Test</button>
+        </div>
+        <label class="local-toggle"><input type="checkbox" id="localOnly" checked> 🔒 Local voices only — never send text off this computer</label>
+        <div class="privacy-note" id="privacyNote"></div>
+      </div>
+
+      <div class="sliders">
+        <div class="row">
+          <div class="slider-head"><label for="rate">Speed</label><span class="slider-val" id="rateVal">1.0×</span></div>
+          <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="row">
+          <div class="slider-head"><label for="pitch">Pitch</label><span class="slider-val" id="pitchVal">1.0</span></div>
+          <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="row">
+          <div class="slider-head"><label for="volume">Volume</label><span class="slider-val" id="volumeVal">100%</span></div>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1">
+        </div>
+      </div>
+
+      <div class="appearance">
+        <div class="app-item">
+          <label>Theme</label>
+          <button class="btn-ghost" id="themeBtn">🌙 Dark</button>
+        </div>
+        <div class="app-item">
+          <label>Text size</label>
+          <div class="stepper">
+            <button class="btn-ghost" id="fontDown" title="Smaller text">A−</button>
+            <span id="fontVal">100%</span>
+            <button class="btn-ghost" id="fontUp" title="Larger text">A+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn-ghost skip" id="prevBtn" disabled title="Previous sentence (←)">⏮</button>
+        <button id="playBtn">▶ Play</button>
+        <button id="pauseBtn" disabled>⏸ Pause</button>
+        <button class="btn-ghost skip" id="nextBtn" disabled title="Next sentence (→)">⏭</button>
+        <button id="stopBtn" disabled>⏹ Stop</button>
+      </div>
+      <div class="btns secondary">
+        <button class="btn-ghost" id="clearBtn" title="Clear the text box">🗑 Clear text</button>
+        <button class="btn-ghost" id="resetBtn" title="Reset speed / pitch / volume">↺ Reset sliders</button>
+      </div>
+    </div>
+
+    <div class="note" id="note"></div>
+  </div>
+
+  <footer>
+    <p class="support">
+      Free to use. If this helped you catch mistakes in your manuscript, you can
+      <a id="supportLink" href="#" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a>.
+    </p>
+
+    <details class="how">
+      <summary>How privacy works &amp; limitations</summary>
+      <div class="how-body">
+        <p><strong>What this page does</strong></p>
+        <ul>
+          <li>Reads your text aloud using text-to-speech voices already installed on your computer.</li>
+          <li>Keeps your draft in the page only. It is <strong>not</strong> saved anywhere by this page — closing or reloading the tab discards it.</li>
+        </ul>
+        <p><strong>What this page does not do</strong></p>
+        <ul>
+          <li>It does not upload your text to any server of mine.</li>
+          <li>It does not save your manuscript (only harmless settings like chosen voice, speed and theme are stored locally).</li>
+          <li>It does not use AI to process your writing.</li>
+          <li>It does not include analytics, tracking, external fonts, or third-party scripts.</li>
+        </ul>
+        <p><strong>Important limitation — voices</strong></p>
+        <p>Voice privacy depends on your browser, operating system, and the voice you pick. Some browsers offer
+        cloud/online voices that <strong>do</strong> send your text to a provider (e.g. Microsoft or Google) to be
+        synthesised. This tool tries to identify local voices — labelling them where the browser exposes that
+        information — and defaults to <em>“Local voices only.”</em> Where the browser doesn't tell us, treat a voice
+        as unknown. For maximum privacy, use a known local system voice (on Windows these are often named Microsoft
+        David, Zira, Mark, etc.) and run offline.</p>
+        <p><strong>For maximum privacy</strong></p>
+        <ul>
+          <li>Click “Download this page for offline use.”</li>
+          <li>Disconnect from the internet.</li>
+          <li>Open the downloaded file in your browser.</li>
+          <li>Paste your draft and listen locally.</li>
+        </ul>
+        <p style="margin-top:10px"><em>Disclaimer:</em> This tool is designed for privacy-conscious writers. It runs
+        locally in your browser and does not intentionally send your text anywhere, but no software can be guaranteed
+        private in every environment. You should only use software from sources you trust. The whole tool is this one
+        HTML file — you're encouraged to inspect it (View Source) before trusting it with a manuscript.</p>
+      </div>
+    </details>
+
+    <p class="fineprint">This page makes no intentional network requests. It uses only your browser's built-in
+      <code>speechSynthesis</code> API. Open your browser's DevTools → Network tab and press Play to verify.</p>
+  </footer>
+
+<script>
+(function () {
+  // ============================================================================
+  // Configuration
+  // ============================================================================
+  // Support / donation link. Replace with your own Buy Me a Coffee URL (or any
+  // link). This is the ONLY outbound link on the page and is never contacted
+  // automatically — nothing happens unless the visitor clicks it.
+  const SUPPORT_URL = 'https://www.buymeacoffee.com/YOUR_NAME_HERE';
+
+  const synth = window.speechSynthesis;
+  const $ = id => document.getElementById(id);
+  const textEl = $('text'), voiceSel = $('voice'), voiceFilter = $('voiceFilter');
+  const localOnly = $('localOnly'), privacyNote = $('privacyNote');
+  const rate = $('rate'), pitch = $('pitch'), volume = $('volume');
+  const rateVal = $('rateVal'), pitchVal = $('pitchVal'), volumeVal = $('volumeVal');
+  const playBtn = $('playBtn'), pauseBtn = $('pauseBtn'), stopBtn = $('stopBtn');
+  const prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
+  const editView = $('editView'), readView = $('readView'), reader = $('reader');
+  const editBtn = $('editBtn'), barFill = $('barFill'), nowCount = $('nowCount'), selBadge = $('selBadge');
+  const themeBtn = $('themeBtn'), fontVal = $('fontVal'), note = $('note');
+
+  let voices = [], chunks = [], idx = 0;
+  let playing = false, paused = false, inRead = false, curUtter = null;
+  let selectedVoiceName = '', lastSpan = null;
+
+  // Wire up the (never-auto-contacted) support link.
+  $('supportLink').href = SUPPORT_URL;
+
+  // ============================================================================
+  // Persistence — SETTINGS ONLY. The manuscript text is never stored.
+  // ============================================================================
+  const LS = {
+    get: (k, d) => { try { const v = localStorage.getItem('tts_' + k); return v === null ? d : v; } catch (e) { return d; } },
+    set: (k, v) => { try { localStorage.setItem('tts_' + k, v); } catch (e) {} },
+  };
+
+  // ============================================================================
+  // No-speech fallback
+  // ============================================================================
+  if (!synth) {
+    note.classList.add('active');
+    note.innerHTML = '<strong>This browser has no speech synthesis.</strong> Try Microsoft Edge or Google Chrome.';
+    [playBtn, pauseBtn, stopBtn, prevBtn, nextBtn].forEach(b => b.disabled = true);
+    return;
+  }
+
+  // ============================================================================
+  // Voices
+  // ============================================================================
+  // Readable language label, e.g. "en-US" -> "English (United States)". Computed
+  // locally by the browser (Intl) — no network.
+  let _dnLang = null, _dnReg = null;
+  try { _dnLang = new Intl.DisplayNames(['en'], { type: 'language' }); } catch (e) {}
+  try { _dnReg = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) {}
+  function langLabel(code) {
+    if (!code) return 'Other';
+    const parts = code.replace('_', '-').split('-');
+    let name = parts[0];
+    try { if (_dnLang) name = _dnLang.of(parts[0]) || parts[0]; } catch (e) {}
+    if (parts[1]) {
+      let reg = parts[1];
+      try { if (_dnReg) reg = _dnReg.of(parts[1].toUpperCase()) || parts[1]; } catch (e) {}
+      name += ' (' + reg + ')';
+    }
+    return name;
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  function sortedVoices() {
+    const score = v => (/^en/i.test(v.lang) ? 0 : 1000) + (v.localService ? 0 : 100);
+    return voices.slice().sort((a, b) =>
+      score(a) - score(b) || langLabel(a.lang).localeCompare(langLabel(b.lang)) || a.name.localeCompare(b.name));
+  }
+
+  // Rebuild the dropdown. "Local only" hides every online voice (a hard privacy
+  // constraint); the search box is just a view filter on top of that.
+  function renderVoiceOptions() {
+    const allowed = sortedVoices().filter(v => !localOnly.checked || v.localService);
+    if (localOnly.checked && (!selectedVoiceName || !allowed.some(v => v.name === selectedVoiceName))) {
+      const firstLocal = allowed[0];
+      if (firstLocal) { selectedVoiceName = firstLocal.name; LS.set('voice', selectedVoiceName); }
+    }
+
+    const f = (voiceFilter.value || '').trim().toLowerCase();
+    const list = allowed.filter(v =>
+      !f || (v.name + ' ' + v.lang + ' ' + langLabel(v.lang)).toLowerCase().includes(f));
+
+    if (!list.length) {
+      const why = (localOnly.checked && !allowed.length)
+        ? 'No offline voices are installed. Add them in Windows Settings → Time &amp; language → Speech, or untick “Local voices only”.'
+        : 'No voices match “' + esc(voiceFilter.value) + '”.';
+      voiceSel.innerHTML = '<option value="">— none —</option>';
+      privacyNote.className = 'privacy-note warn';
+      privacyNote.innerHTML = why;
+      return;
+    }
+    const order = [], groups = {};
+    list.forEach(v => { const g = langLabel(v.lang); if (!groups[g]) { groups[g] = []; order.push({ g, lang: v.lang }); } groups[g].push(v); });
+    voiceSel.innerHTML = order.map(({ g, lang }) =>
+      `<optgroup label="${esc(g)} — ${esc(lang)}">` +
+      groups[g].map(v => `<option value="${esc(v.name)}">${esc(v.name)}${v.localService ? '' : ' · online'}</option>`).join('') +
+      `</optgroup>`
+    ).join('');
+    if (selectedVoiceName && list.some(v => v.name === selectedVoiceName)) voiceSel.value = selectedVoiceName;
+    else voiceSel.selectedIndex = 0;
+    updatePrivacyNote();
+  }
+
+  function updatePrivacyNote() {
+    if (localOnly.checked) {
+      privacyNote.className = 'privacy-note safe';
+      privacyNote.innerHTML = '🔒 Local only: your text stays on this computer and is never sent anywhere.';
+      return;
+    }
+    const v = chosenVoice();
+    if (v && !v.localService) {
+      privacyNote.className = 'privacy-note warn';
+      privacyNote.innerHTML = '⚠️ This is an <strong>online</strong> voice — pressing Play <strong>sends your text over the internet</strong> to its provider (e.g. Microsoft/Google).';
+    } else {
+      privacyNote.className = 'privacy-note';
+      privacyNote.innerHTML = 'This voice is local — text stays on your computer. (Voices marked “· online” would send the text to their provider.)';
+    }
+  }
+
+  function loadVoices() {
+    voices = synth.getVoices();
+    if (!voices.length) return;
+    if (!selectedVoiceName) selectedVoiceName = LS.get('voice', '');
+    renderVoiceOptions();
+    if (voices.every(v => !v.localService)) {
+      note.classList.add('active');
+      note.innerHTML = 'Only <strong>online</strong> voices are available here — they need an internet connection and may send your text to a provider. Local voices (Microsoft David/Zira, etc.) keep text on your computer; add them via Windows Settings → Time &amp; language → Speech.';
+    }
+  }
+  loadVoices();
+  if (typeof synth.onvoiceschanged !== 'undefined') synth.onvoiceschanged = loadVoices;
+
+  function chosenVoice() {
+    let v = voices.find(x => x.name === selectedVoiceName) || voices.find(x => x.name === voiceSel.value) || null;
+    // Hard guarantee: in local-only mode never return an online voice.
+    if (localOnly.checked && v && !v.localService) v = voices.find(x => x.localService) || null;
+    return v;
+  }
+
+  // ============================================================================
+  // Split text into speakable chunks (sentences; long ones subdivided)
+  // ============================================================================
+  function splitChunks(text) {
+    const out = [];
+    text.split(/\n+/).forEach(para => {
+      const p = para.trim();
+      if (!p) return;
+      const sentences = p.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [p];
+      sentences.forEach(s => {
+        let t = s.trim();
+        while (t.length > 240) {
+          let cut = t.lastIndexOf(',', 240);
+          if (cut < 120) cut = t.lastIndexOf(' ', 240);
+          if (cut < 60) cut = 240;
+          out.push(t.slice(0, cut + 1).trim());
+          t = t.slice(cut + 1).trim();
+        }
+        if (t) out.push(t);
+      });
+    });
+    return out;
+  }
+
+  // ============================================================================
+  // Reading view (highlight + click-to-jump)
+  // ============================================================================
+  function renderReader() {
+    const frag = document.createDocumentFragment();
+    chunks.forEach((c, i) => {
+      const span = document.createElement('span');
+      span.className = 'chunk';
+      span.dataset.idx = i;
+      span.textContent = c + ' ';
+      frag.appendChild(span);
+    });
+    reader.innerHTML = '';
+    reader.appendChild(frag);
+    lastSpan = null;
+  }
+
+  function highlight(i) {
+    if (lastSpan) lastSpan.classList.remove('cur');
+    const span = reader.querySelector('.chunk[data-idx="' + i + '"]');
+    if (span) {
+      span.classList.add('cur');
+      span.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      lastSpan = span;
+    }
+  }
+
+  reader.addEventListener('click', e => {
+    const sp = e.target.closest('.chunk');
+    if (sp) jumpTo(parseInt(sp.dataset.idx, 10));
+  });
+
+  // ============================================================================
+  // View switching
+  // ============================================================================
+  function enterReadMode() {
+    inRead = true;
+    editView.hidden = true;
+    readView.hidden = false;
+  }
+  function enterEditMode() {
+    stop();
+    inRead = false;
+    readView.hidden = true;
+    editView.hidden = false;
+    selBadge.classList.remove('active');
+    setState(false, false);
+    textEl.focus();
+  }
+
+  // Read the current selection if one exists, otherwise the whole text.
+  function getInputText() {
+    const s = textEl.selectionStart, e = textEl.selectionEnd;
+    if (typeof s === 'number' && typeof e === 'number' && e > s) {
+      const sel = textEl.value.slice(s, e).trim();
+      if (sel) { selBadge.classList.add('active'); return sel; }
+    }
+    selBadge.classList.remove('active');
+    return textEl.value;
+  }
+
+  // ============================================================================
+  // Playback
+  // ============================================================================
+  function speakCurrent() {
+    if (!playing) return;
+    if (idx >= chunks.length) { finish(); return; }
+    highlight(idx);
+    nowCount.textContent = 'Sentence ' + (idx + 1) + ' of ' + chunks.length;
+    barFill.style.width = Math.round((idx / chunks.length) * 100) + '%';
+
+    const u = new SpeechSynthesisUtterance(chunks[idx]);
+    const v = chosenVoice();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    u.rate = parseFloat(rate.value);
+    u.pitch = parseFloat(pitch.value);
+    u.volume = parseFloat(volume.value);
+    u.onend = () => { if (!playing) return; idx++; speakCurrent(); };
+    u.onerror = () => { if (!playing) return; idx++; speakCurrent(); };
+    curUtter = u; // keep a reference (prevents Chrome GC mid-speech)
+    synth.speak(u);
+  }
+
+  // Start (or restart) playback from a given chunk index.
+  function beginRead(from) {
+    idx = Math.max(0, Math.min(from | 0, chunks.length - 1));
+    playing = true; paused = false;
+    setState(true, false);
+    try { synth.cancel(); } catch (e) {}
+    speakCurrent();
+  }
+
+  function play() {
+    if (paused) { synth.resume(); paused = false; setState(true, false); return; }
+    if (playing) return;
+    if (!inRead) {
+      chunks = splitChunks(getInputText());
+      if (!chunks.length) return;
+      renderReader();
+      enterReadMode();
+    }
+    beginRead(0);
+  }
+  function pause() {
+    if (playing && !paused) { try { synth.pause(); } catch (e) {} paused = true; setState(true, true); }
+  }
+  function stop() {
+    playing = false; paused = false; curUtter = null;
+    try { synth.cancel(); } catch (e) {}
+    barFill.style.width = '0%';
+    if (lastSpan) { lastSpan.classList.remove('cur'); lastSpan = null; }
+    nowCount.textContent = 'Stopped';
+    setState(false, false);
+  }
+  function finish() {
+    barFill.style.width = '100%';
+    nowCount.textContent = 'Done';
+    playing = false; paused = false; curUtter = null;
+    if (lastSpan) { lastSpan.classList.remove('cur'); lastSpan = null; }
+    setState(false, false);
+  }
+  // Jump to a chunk (click-to-read / skip). Only meaningful in reading mode.
+  function jumpTo(i) {
+    if (!inRead || !chunks.length) return;
+    beginRead(i);
+  }
+
+  function setState(isPlaying, isPaused) {
+    playBtn.textContent = isPaused ? '▶ Resume' : '▶ Play';
+    playBtn.disabled = isPlaying && !isPaused;
+    pauseBtn.disabled = !isPlaying || isPaused;
+    stopBtn.disabled = !isPlaying;
+    prevBtn.disabled = !inRead;
+    nextBtn.disabled = !inRead;
+  }
+
+  // Chrome sometimes silently pauses long playback — nudge it back if we didn't pause.
+  setInterval(() => { if (playing && !paused && synth.paused) { try { synth.resume(); } catch (e) {} } }, 5000);
+
+  // ============================================================================
+  // Download this page for offline use
+  // ============================================================================
+  function downloadPage() {
+    // Serialise a *clean* clone so the download never contains the current draft
+    // or any injected reading-view DOM.
+    const clone = document.documentElement.cloneNode(true);
+    const r = clone.querySelector('#reader'); if (r) r.innerHTML = '';
+    const t = clone.querySelector('#text'); if (t) t.textContent = '';
+    const ev = clone.querySelector('#editView'); if (ev) ev.hidden = false;
+    const rv = clone.querySelector('#readView'); if (rv) rv.hidden = true;
+    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'offline-manuscript-reader.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ============================================================================
+  // Appearance: theme + font size
+  // ============================================================================
+  let theme = LS.get('theme', 'dark');
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeBtn.textContent = theme === 'light' ? '☀ Light' : '🌙 Dark';
+  }
+  let fontScale = parseFloat(LS.get('fontScale', '1')) || 1;
+  function applyFont() {
+    document.documentElement.style.setProperty('--fs', fontScale);
+    fontVal.textContent = Math.round(fontScale * 100) + '%';
+  }
+
+  // ============================================================================
+  // UI wiring
+  // ============================================================================
+  function fmtRate(v) { return parseFloat(v).toFixed(1) + '×'; }
+  function fmtPitch(v) { return parseFloat(v).toFixed(1); }
+  function fmtVol(v) { return Math.round(parseFloat(v) * 100) + '%'; }
+
+  rate.addEventListener('input', () => { rateVal.textContent = fmtRate(rate.value); LS.set('rate', rate.value); });
+  pitch.addEventListener('input', () => { pitchVal.textContent = fmtPitch(pitch.value); LS.set('pitch', pitch.value); });
+  volume.addEventListener('input', () => { volumeVal.textContent = fmtVol(volume.value); LS.set('volume', volume.value); });
+  voiceSel.addEventListener('change', () => { selectedVoiceName = voiceSel.value; LS.set('voice', selectedVoiceName); updatePrivacyNote(); });
+  voiceFilter.addEventListener('input', renderVoiceOptions);
+  localOnly.addEventListener('change', () => { LS.set('localOnly', localOnly.checked ? '1' : '0'); renderVoiceOptions(); });
+
+  function updateCounts() {
+    const words = (textEl.value.trim().match(/\S+/g) || []).length;
+    const chars = textEl.value.length;
+    $('wordCount').textContent = words + (words === 1 ? ' word' : ' words');
+    $('charCount').textContent = chars + (chars === 1 ? ' character' : ' characters');
+  }
+  // NOTE: intentionally does NOT persist textEl.value — the manuscript never leaves the page.
+  textEl.addEventListener('input', updateCounts);
+
+  playBtn.addEventListener('click', play);
+  pauseBtn.addEventListener('click', pause);
+  stopBtn.addEventListener('click', stop);
+  prevBtn.addEventListener('click', () => jumpTo(idx - 1));
+  nextBtn.addEventListener('click', () => jumpTo(idx + 1));
+  editBtn.addEventListener('click', enterEditMode);
+  $('downloadBtn').addEventListener('click', downloadPage);
+
+  $('testBtn').addEventListener('click', () => {
+    try { synth.cancel(); } catch (e) {}
+    const u = new SpeechSynthesisUtterance('This is how this voice sounds.');
+    const v = chosenVoice();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    u.rate = parseFloat(rate.value); u.pitch = parseFloat(pitch.value); u.volume = parseFloat(volume.value);
+    synth.speak(u);
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    if (inRead) enterEditMode();
+    textEl.value = '';
+    updateCounts();
+    textEl.focus();
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    rate.value = 1; pitch.value = 1; volume.value = 1;
+    rateVal.textContent = '1.0×'; pitchVal.textContent = '1.0'; volumeVal.textContent = '100%';
+    LS.set('rate', '1'); LS.set('pitch', '1'); LS.set('volume', '1');
+  });
+
+  themeBtn.addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(); LS.set('theme', theme);
+  });
+  $('fontUp').addEventListener('click', () => {
+    fontScale = Math.min(1.8, +(fontScale + 0.1).toFixed(2)); applyFont(); LS.set('fontScale', String(fontScale));
+  });
+  $('fontDown').addEventListener('click', () => {
+    fontScale = Math.max(0.8, +(fontScale - 0.1).toFixed(2)); applyFont(); LS.set('fontScale', String(fontScale));
+  });
+
+  document.addEventListener('keydown', e => {
+    const inField = /^(TEXTAREA|INPUT|SELECT)$/.test((e.target.tagName || ''));
+    if (e.key === 'Escape') { if (inRead) enterEditMode(); else stop(); }
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); play(); }
+    else if (inRead && !inField && e.key === 'ArrowRight') { e.preventDefault(); jumpTo(idx + 1); }
+    else if (inRead && !inField && e.key === 'ArrowLeft') { e.preventDefault(); jumpTo(idx - 1); }
+    else if (inRead && !inField && e.key === ' ') { e.preventDefault(); if (playing && !paused) pause(); else play(); }
+  });
+
+  // ============================================================================
+  // Restore saved SETTINGS (never the text)
+  // ============================================================================
+  rate.value = LS.get('rate', '1'); pitch.value = LS.get('pitch', '1'); volume.value = LS.get('volume', '1');
+  rateVal.textContent = fmtRate(rate.value);
+  pitchVal.textContent = fmtPitch(pitch.value);
+  volumeVal.textContent = fmtVol(volume.value);
+  localOnly.checked = LS.get('localOnly', '1') === '1'; // default ON — private by default
+  applyTheme();
+  applyFont();
+  if (voices.length) renderVoiceOptions();
+  updatePrivacyNote();
+  updateCounts();
+
+  // Stop speech if the page is closed/navigated (avoids it continuing in the background).
+  window.addEventListener('beforeunload', () => { try { synth.cancel(); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
