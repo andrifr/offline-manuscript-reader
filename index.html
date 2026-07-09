@@ -25,23 +25,30 @@
 -->
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* The hidden attribute must always win, even over rules like .row{display:flex} */
+  [hidden] { display: none !important; }
 
+  /* Palette (both themes, roles switched):
+     #353535 jet · #3c6e71 teal · #ffffff white · #d9d9d9 gray · #284b63 dark blue
+     Accent: #f01860 pink. Teal marks the sentence being read; pink marks actions. */
   /* Dark theme (default) */
   :root {
-    --bg: #1a1a2e; --panel: #16213e; --panel2: #0d1b36; --line: #0f3460;
-    --accent: #4ecca3; --btn-text: #07131f;
-    --text: #eee; --muted: #8a93a6; --cur-bg: #4ecca3; --cur-text: #07131f;
+    --bg: #353535; --panel: #284b63; --panel2: #353535; --line: rgba(217, 217, 217, .22);
+    --accent: #f01860; --btn-text: #ffffff;
+    --text: #ffffff; --muted: #d9d9d9; --cur-bg: #3c6e71; --cur-text: #ffffff;
+    --chunk-hover: rgba(60, 110, 113, .4);
     --warn: #ff8fa3;
     --shadow: 0 8px 24px rgba(0, 0, 0, .35);
     --fs: 1;
   }
   /* Light theme */
   html[data-theme="light"] {
-    --bg: #f4f5fa; --panel: #ffffff; --panel2: #eef0f6; --line: #d7dbe8;
-    --accent: #0e7d63; --btn-text: #ffffff;
-    --text: #1c2333; --muted: #5a6377; --cur-bg: #0e7d63; --cur-text: #ffffff;
+    --bg: #d9d9d9; --panel: #ffffff; --panel2: #d9d9d9; --line: rgba(53, 53, 53, .3);
+    --accent: #f01860; --btn-text: #ffffff;
+    --text: #353535; --muted: #284b63; --cur-bg: #3c6e71; --cur-text: #ffffff;
+    --chunk-hover: rgba(60, 110, 113, .18);
     --warn: #c62148;
-    --shadow: 0 8px 24px rgba(28, 35, 51, .12);
+    --shadow: 0 8px 24px rgba(53, 53, 53, .18);
   }
 
   body {
@@ -117,7 +124,7 @@
     border-radius: 999px; padding: 2px 8px; margin-left: 8px; font-weight: 600;
   }
   .sel-badge.active { display: inline-block; }
-  .bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
   .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .reader {
     background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
@@ -126,7 +133,7 @@
     white-space: pre-wrap;
   }
   .reader .chunk { cursor: pointer; border-radius: 4px; transition: background .15s; padding: 1px 0; }
-  .reader .chunk:hover { background: rgba(78, 204, 163, .16); }
+  .reader .chunk:hover { background: var(--chunk-hover); }
   .reader .chunk.cur {
     background: var(--cur-bg); color: var(--cur-text); box-shadow: 0 0 0 3px var(--cur-bg);
   }
@@ -213,7 +220,9 @@
   }
   .local-toggle input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
   .privacy-note { font-size: .78rem; color: var(--muted); line-height: 1.5; }
-  .privacy-note.safe { color: var(--accent); }
+  /* "safe" stays calm/muted — with a pink accent, coloring it pink would read
+     as a warning. The lock emoji carries the reassurance. */
+  .privacy-note.safe { color: var(--muted); }
   .privacy-note.warn { color: var(--warn); }
 
   .sliders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
@@ -551,7 +560,7 @@
     const solo = items.length < 2;
     langWrap.hidden = solo;
     voiceGrid.classList.toggle('solo', solo);
-    if (solo) return;
+    if (solo) { langSel.innerHTML = ''; return; } // never leave a stale list behind
     langSel.innerHTML = '<option value="all">All languages</option>' +
       items.map(i => `<option value="${esc(i.b)}">${esc(i.label)}</option>`).join('');
     langSel.value = eff || 'all';
