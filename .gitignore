@@ -6,3 +6,6 @@ desktop.ini
 
 # Internal working notes — kept local, never published
 CLAUDE.md
+
+# Browser-automation / verification artifacts (Playwright MCP)
+.playwright-mcp/
